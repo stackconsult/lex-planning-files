@@ -1,0 +1,177 @@
+# LexRadar ERD
+# 8 Tables with Ledger and Scoring
+
+erDiagram
+    tenants ||--o{ inventions : "owns"
+    tenants ||--o{ disclosure_drafts : "receives"
+    tenants ||--o{ filing_bundles : "submits"
+    tenants ||--o{ proof_ledger : "anchors"
+    
+    inventions ||--o{ invention_signals : "generates"
+    inventions ||--o{ prior_art : "searched against"
+    inventions ||--o{ patent_scores : "scored"
+    inventions ||--o{ disclosure_drafts : "disclosed"
+    inventions ||--o{ filing_bundles : "filed"
+    
+    prior_art ||--o{ patent_scores : "contributes to"
+    disclosure_drafts ||--o{ filing_bundles : "packaged into"
+    disclosure_drafts ||--o{ attorney_reviews : "reviewed by"
+    
+    tenants {
+        uuid id PK
+        string name
+        string tier "SOLO|FIRM|ENTERPRISE"
+        timestamp created_at
+        timestamp updated_at
+        boolean is_active
+        jsonb metadata
+    }
+    
+    inventions {
+        uuid id PK
+        uuid tenant_id FK
+        string title
+        string description
+        jsonb inventors "array of inventor info"
+        string source "GitHub|Jira|Notion|Manual"
+        string source_id "external reference"
+        jsonb bam_compound "IP signal classification"
+        string signal_type "11 signal types"
+        float novelty_score
+        float nonobviousness_score
+        float enablement_score
+        float written_description_score
+        float definiteness_score
+        float enablement_score
+        float composite_score
+        string status "DETECTED|SCORING|DISCLOSED|FILED"
+        timestamp detected_at
+        timestamp disclosed_at
+        timestamp filed_at
+        jsonb metadata
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    invention_signals {
+        uuid id PK
+        uuid invention_id FK
+        string signal_type "CODE_COMMIT|ISSUE|DOCUMENT|etc."
+        string source
+        jsonb signal_data
+        float confidence
+        timestamp detected_at
+        timestamp created_at
+    }
+    
+    prior_art {
+        uuid id PK
+        uuid invention_id FK
+        string source "USPTO|WIPO|EPO|Lens|Google Patents|PatentScope|IP.com"
+        string external_id
+        string patent_number
+        string title
+        jsonb inventors
+        string abstract
+        text description
+        timestamp filing_date
+        timestamp publication_date
+        jsonb claims
+        string jurisdiction
+        vector(1536) embedding "pgvector HNSW"
+        float relevance_score
+        jsonb bam_compound "routing signal"
+        timestamp retrieved_at
+        timestamp created_at
+    }
+    
+    patent_scores {
+        uuid id PK
+        uuid invention_id FK
+        uuid prior_art_id FK
+        float novelty_score "0-1"
+        float nonobviousness_score "0-1"
+        float enablement_score "0-1"
+        float written_description_score "0-1"
+        float definiteness_score "0-1"
+        float utility_score "0-1"
+        float composite_score "weighted average"
+        string score_explanation
+        timestamp scored_at
+        timestamp created_at
+    }
+    
+    disclosure_drafts {
+        uuid id PK
+        uuid invention_id FK
+        uuid tenant_id FK
+        string disclosure_type "PROVISIONAL|NON_PROVISIONAL|PCT"
+        jsonb sections "10 LHP sections"
+        jsonb claim_themes
+        float grounding_score "≥0.85 required"
+        string status "DRAFT|REVIEW|APPROVED"
+        jsonb attorney_feedback
+        uuid attorney_id FK "nullable"
+        timestamp drafted_at
+        timestamp reviewed_at
+        timestamp approved_at
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    filing_bundles {
+        uuid id PK
+        uuid disclosure_draft_id FK
+        uuid invention_id FK
+        uuid tenant_id FK
+        jsonb documents "9 documents"
+        string bundle_format "PDF|ZIP"
+        string bundle_path "S3 location"
+        string status "PACKAGED|DOWNLOADED|SUBMITTED"
+        timestamp packaged_at
+        timestamp downloaded_at
+        timestamp submitted_at
+        timestamp created_at
+    }
+    
+    proof_ledger {
+        uuid id PK
+        uuid tenant_id FK
+        uuid invention_id FK
+        uuid filing_bundle_id FK
+        string document_hash "SHA-256"
+        string bundle_hash "SHA-256"
+        string polygon_tx_hash "on-chain anchor"
+        timestamp polygon_tx_timestamp
+        string polygon_block_number
+        string encryption_key_id "BYOK reference"
+        string encryption_algorithm "AES-256"
+        jsonb proof_metadata
+        timestamp anchored_at
+        timestamp created_at
+    }
+    
+    attorney_reviews {
+        uuid id PK
+        uuid disclosure_draft_id FK
+        uuid tenant_id FK
+        string attorney_name
+        string attorney_email
+        string review_status "PENDING|IN_PROGRESS|APPROVED|REJECTED"
+        text review_notes
+        jsonb requested_changes
+        timestamp review_started_at
+        timestamp review_completed_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    tenants {
+        uuid id PK
+        string name
+        string tier
+        timestamp created_at
+        timestamp updated_at
+        boolean is_active
+        jsonb metadata
+    }

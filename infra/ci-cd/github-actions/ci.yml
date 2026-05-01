@@ -1,0 +1,223 @@
+name: CI — Lint, Test, Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-dev.txt
+      
+      - name: Run flake8
+        run: flake8 src/ --max-line-length=120 --exclude=migrations/
+      
+      - name: Run black check
+        run: black --check src/
+      
+      - name: Run mypy
+        run: mypy src/ --ignore-missing-imports
+      
+      - name: Run isort check
+        run: isort --check-only src/
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      
+      - name: Run pytest with coverage
+        run: pytest tests/unit/ -v --cov=src --cov-report=xml --cov-report=term-missing
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      
+      - name: Run Semgrep SAST
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/python
+            p/owasp-top-ten
+            p/cwe-top-25
+            p/security-audit
+      
+      - name: Run bandit
+        run: bandit -r src/ -f json -o bandit-report.json || true
+      
+      - name: Run pip-audit
+        run: pip-audit --requirement=requirements.txt --format=json --output=pip-audit-report.json || true
+      
+      - name: Run Snyk dependency scan
+        uses: snyk/actions/python@master
+        with:
+          args: --severity-threshold=high --json-file-output=snyk-report.json
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        continue-on-error: true
+      
+      - name: Upload security scan artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-reports
+          path: |
+            bandit-report.json
+            pip-audit-report.json
+            snyk-report.json
+
+  byok-test:
+    name: BYOK Test
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      
+      - name: Start Vault dev server
+        run: |
+          docker run -d --name vault -p 8200:8200 -e VAULT_DEV_ROOT_TOKEN_ID=test-token hashicorp/vault:latest
+          sleep 5
+      
+      - name: Run BYOK test
+        run: pytest tests/security/test_byok.py -v
+        env:
+          VAULT_ADDR: http://localhost:8200
+          VAULT_TOKEN: test-token
+
+  rls-audit:
+    name: RLS Audit Test
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    services:
+      postgres:
+        image: ankane/pgvector:latest
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: lexcore_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      
+      - name: Run RLS audit test
+        run: pytest tests/security/test_rls_audit.py -v
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/lexcore_test
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [unit-tests, byok-test, rls-audit]
+    services:
+      postgres:
+        image: ankane/pgvector:latest
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: lexcore_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      
+      - name: Run integration tests
+        run: pytest tests/integration/ -v --tb=short
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/lexcore_test
+          REDIS_URL: redis://localhost:6379/0

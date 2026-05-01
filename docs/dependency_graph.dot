@@ -1,0 +1,153 @@
+digraph LexCoreLexRadarDependencyGraph {
+    rankdir=TD;
+    node [shape=box, style=filled, fillcolor="#f0f0f0"];
+    edge [fontname="Helvetica", fontsize=10];
+    
+    // Phase 0 Hordes
+    HORDE_ARCH [label="HORDE-ARCH\nERD, OpenAPI, Contracts", fillcolor="#ffcccc"];
+    HORDE_INFRA [label="HORDE-INFRA\nTerraform, K8s, CI/CD", fillcolor="#ccffcc"];
+    HORDE_SECURITY [label="HORDE-SECURITY\nSAST/DAST, BYOK, SOC2\n(Continuous from P0)", fillcolor="#ccccff", style="dashed"];
+    
+    // Phase 1 Hordes
+    HORDE_SCHEMA [label="HORDE-SCHEMA\nMigrations, RLS, pgvector", fillcolor="#ffffcc"];
+    HORDE_API [label="HORDE-API\nFastAPI, MCP, BAM", fillcolor="#ffffcc"];
+    HORDE_INGEST [label="HORDE-INGEST\nConnectors, Chunker, Embedder", fillcolor="#ffffcc"];
+    HORDE_EVAL [label="HORDE-EVAL\nGolden Sets, Judges\n(Last in each phase)", fillcolor="#ffccff"];
+    
+    // Phase 2 Hordes
+    HORDE_AGENTS [label="HORDE-AGENTS\n24 Agents, Retry, Audit", fillcolor="#ccffff"];
+    HORDE_SCORING [label="HORDE-SCORING\n6-Dimension Scoring", fillcolor="#ccffff"];
+    HORDE_DISCLOSURE [label="HORDE-DISCLOSURE\n10 LHP Sections, Bundles", fillcolor="#ccffff"];
+    
+    // Phase 3 Hordes
+    HORDE_LEDGER [label="HORDE-LEDGER\nSHA-256, Polygon, AES-256", fillcolor="#ffccff"];
+    
+    // Phase 4 Hordes
+    HORDE_PORTAL [label="HORDE-PORTAL\nNext.js, Dashboards", fillcolor="#ccccff"];
+    HORDE_DOCS [label="HORDE-DOCS\nAPI Docs, Runbooks", fillcolor="#ccccff"];
+    
+    // HARD DEPENDENCIES (solid lines, must complete before)
+    HORDE_ARCH -> HORDE_SCHEMA [label="ERD locked", color="#ff0000", penwidth=2];
+    HORDE_ARCH -> HORDE_API [label="Contracts defined", color="#ff0000", penwidth=2];
+    HORDE_ARCH -> HORDE_INFRA [label="Dependency graph", color="#ff0000", penwidth=2];
+    HORDE_SCHEMA -> HORDE_INGEST [label="Tables exist", color="#ff0000", penwidth=2];
+    HORDE_SCHEMA -> HORDE_LEDGER [label="proof_ledger table", color="#ff0000", penwidth=2];
+    HORDE_SCHEMA -> HORDE_API [label="Schema ready", color="#ff0000", penwidth=2];
+    HORDE_API -> HORDE_AGENTS [label="MCP server live", color="#ff0000", penwidth=2];
+    HORDE_API -> HORDE_PORTAL [label="API routes", color="#ff0000", penwidth=2];
+    HORDE_INGEST -> HORDE_SCORING [label="Prior art data", color="#ff0000", penwidth=2];
+    HORDE_SCORING -> HORDE_DISCLOSURE [label="Scores ready", color="#ff0000", penwidth=2];
+    HORDE_AGENTS -> HORDE_SCORING [label="Agents built", color="#ff0000", penwidth=2];
+    HORDE_AGENTS -> HORDE_DISCLOSURE [label="Agents built", color="#ff0000", penwidth=2];
+    HORDE_AGENTS -> HORDE_LEDGER [label="Agents built", color="#ff0000", penwidth=2];
+    HORDE_DISCLOSURE -> HORDE_PORTAL [label="Disclosures ready", color="#ff0000", penwidth=2];
+    HORDE_AGENTS -> HORDE_EVAL [label="All agents ready", color="#ff0000", penwidth=2];
+    
+    // SOFT DEPENDENCIES (dashed lines, can run in parallel)
+    HORDE_INFRA -> HORDE_SECURITY [label="Can run parallel", style=dashed, color="#00ff00"];
+    HORDE_SCHEMA -> HORDE_INGEST [label="Can run parallel", style=dashed, color="#00ff00"];
+    HORDE_API -> HORDE_INGEST [label="Can run parallel", style=dashed, color="#00ff00"];
+    
+    // CROSS-SYSTEM DEPENDENCIES (LexCore ↔ LexRadar)
+    HORDE_DISCLOSURE -> HORDE_AGENTS [label="Calls via MCP", style=dotted, color="#0000ff"];
+    HORDE_AGENTS -> HORDE_DISCLOSURE [label="Provides legal prose", style=dotted, color="#0000ff"];
+    
+    // CONTINUOUS HORDE (dashed blue lines)
+    HORDE_SECURITY -> HORDE_ARCH [style=dashed, color="#0000ff", label="Runs continuously"];
+    HORDE_SECURITY -> HORDE_SCHEMA [style=dashed, color="#0000ff", label="Runs continuously"];
+    HORDE_SECURITY -> HORDE_API [style=dashed, color="#0000ff", label="Runs continuously"];
+    HORDE_SECURITY -> HORDE_AGENTS [style=dashed, color="#0000ff", label="Runs continuously"];
+    HORDE_SECURITY -> HORDE_SCORING [style=dashed, color="#0000ff", label="Runs continuously"];
+    HORDE_SECURITY -> HORDE_DISCLOSURE [style=dashed, color="#0000ff", label="Runs continuously"];
+    HORDE_SECURITY -> HORDE_LEDGER [style=dashed, color="#0000ff", label="Runs continuously"];
+    HORDE_SECURITY -> HORDE_PORTAL [style=dashed, color="#0000ff", label="Runs continuously"];
+    
+    // PHASE GROUPINGS
+    subgraph cluster_P0 {
+        label="P0 Foundation";
+        style=filled;
+        color="#333333";
+        fillcolor="#f9f9f9";
+        HORDE_ARCH;
+        HORDE_INFRA;
+        HORDE_SECURITY;
+    }
+    
+    subgraph cluster_P1 {
+        label="P1 LexCore DB";
+        style=filled;
+        color="#333333";
+        fillcolor="#f9f9f9";
+        HORDE_SCHEMA;
+        HORDE_API;
+        HORDE_INGEST;
+        HORDE_EVAL;
+    }
+    
+    subgraph cluster_P2 {
+        label="P2 IP Pipeline";
+        style=filled;
+        color="#333333";
+        fillcolor="#f9f9f9";
+        HORDE_AGENTS;
+        HORDE_SCORING;
+        HORDE_DISCLOSURE;
+        HORDE_EVAL;
+    }
+    
+    subgraph cluster_P3 {
+        label="P3 Ledger + Auto";
+        style=filled;
+        color="#333333";
+        fillcolor="#f9f9f9";
+        HORDE_LEDGER;
+        HORDE_AGENTS;
+        HORDE_INFRA;
+        HORDE_EVAL;
+    }
+    
+    subgraph cluster_P4 {
+        label="P4 Portal + Handoff";
+        style=filled;
+        color="#333333";
+        fillcolor="#f9f9f9";
+        HORDE_PORTAL;
+        HORDE_API;
+        HORDE_SECURITY;
+        HORDE_EVAL;
+        HORDE_DOCS;
+    }
+    
+    subgraph cluster_P5 {
+        label="P5 Hardening";
+        style=filled;
+        color="#333333";
+        fillcolor="#f9f9f9";
+        HORDE_EVAL;
+        HORDE_INFRA;
+        HORDE_SECURITY;
+        HORDE_DOCS;
+        HORDE_SCHEMA;
+    }
+    
+    // PHASE TRANSITIONS
+    P0_P1 [label="Gate: Contracts hash locked,\nterraform clean, CI passes", shape=none];
+    P1_P2 [label="Gate: ToolCallJudge ≥ 0.90,\nP95 < 300ms", shape=none];
+    P2_P3 [label="Gate: Grounding ≥ 0.85,\n7 fetchers live", shape=none];
+    P3_P4 [label="Gate: BYOK test passes,\npipeline < 3000ms", shape=none];
+    P4_P5 [label="Gate: Tenant audit clean,\nflow < 5min", shape=none];
+    P5_PROD [label="Gate: Agents ≥ 0.90,\nP99 < 10s, zero HIGH CVEs", shape=none];
+    
+    cluster_P0 -> P0_P1 [style=invis];
+    P0_P1 -> cluster_P1;
+    cluster_P1 -> P1_P2 [style=invis];
+    P1_P2 -> cluster_P2;
+    cluster_P2 -> P2_P3 [style=invis];
+    P2_P3 -> cluster_P3;
+    cluster_P3 -> P3_P4 [style=invis];
+    P3_P4 -> cluster_P4;
+    cluster_P4 -> P4_P5 [style=invis];
+    P4_P5 -> cluster_P5;
+    cluster_P5 -> P5_PROD [style=invis];
+    P5_PROD -> PRODUCTION [label="PRODUCTION", shape=ellipse, fillcolor="#00ff00"];
+}

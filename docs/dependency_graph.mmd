@@ -1,0 +1,126 @@
+# LexCore + LexRadar Dependency Graph
+# 13 Hordes with Hard and Soft Dependencies
+# Zero Circular Dependencies Guaranteed
+
+graph TD
+    %% Phase 0 Hordes
+    HORDE_ARCH[HORDE-ARCH<br/>ERD, OpenAPI, Contracts]
+    HORDE_INFRA[HORDE-INFRA<br/>Terraform, K8s, CI/CD]
+    HORDE_SECURITY[HORDE-SECURITY<br/>SAST/DAST, BYOK, SOC2]
+    
+    %% Phase 1 Hordes
+    HORDE_SCHEMA[HORDE-SCHEMA<br/>Migrations, RLS, pgvector]
+    HORDE_API[HORDE-API<br/>FastAPI, MCP, BAM]
+    HORDE_INGEST[HORDE-INGEST<br/>Connectors, Chunker, Embedder]
+    HORDE_EVAL[HORDE-EVAL<br/>Golden Sets, Judges]
+    
+    %% Phase 2 Hordes
+    HORDE_AGENTS[HORDE-AGENTS<br/>24 Agents, Retry, Audit]
+    HORDE_SCORING[HORDE-SCORING<br/>6-Dimension Scoring]
+    HORDE_DISCLOSURE[HORDE-DISCLOSURE<br/>10 LHP Sections, Bundles]
+    
+    %% Phase 3 Hordes
+    HORDE_LEDGER[HORDE-LEDGER<br/>SHA-256, Polygon, AES-256]
+    
+    %% Phase 4 Hordes
+    HORDE_PORTAL[HORDE-PORTAL<br/>Next.js, Dashboards]
+    HORDE_DOCS[HORDE-DOCS<br/>API Docs, Runbooks]
+    
+    %% HARD DEPENDENCIES (must complete before)
+    HORDE_ARCH -->|ERD locked| HORDE_SCHEMA
+    HORDE_ARCH -->|Contracts defined| HORDE_API
+    HORDE_ARCH -->|Dependency graph| HORDE_INFRA
+    HORDE_SCHEMA -->|Tables exist| HORDE_INGEST
+    HORDE_SCHEMA -->|proof_ledger table| HORDE_LEDGER
+    HORDE_SCHEMA -->|Schema ready| HORDE_API
+    HORDE_API -->|MCP server live| HORDE_AGENTS
+    HORDE_API -->|API routes| HORDE_PORTAL
+    HORDE_INGEST -->|Prior art data| HORDE_SCORING
+    HORDE_SCORING -->|Scores ready| HORDE_DISCLOSURE
+    HORDE_AGENTS -->|Agents built| HORDE_SCORING
+    HORDE_AGENTS -->|Agents built| HORDE_DISCLOSURE
+    HORDE_AGENTS -->|Agents built| HORDE_LEDGER
+    HORDE_DISCLOSURE -->|Disclosures ready| HORDE_PORTAL
+    HORDE_AGENTS -->|All agents ready| HORDE_EVAL
+    
+    %% SOFT DEPENDENCIES (can run in parallel)
+    HORDE_INFRA -.->|Can run parallel| HORDE_SECURITY
+    HORDE_SCHEMA -.->|Can run parallel| HORDE_INGEST
+    HORDE_API -.->|Can run parallel| HORDE_INGEST
+    
+    %% CROSS-SYSTEM DEPENDENCIES (LexCore ↔ LexRadar)
+    HORDE_DISCLOSURE -.->|Calls via MCP| HORDE_AGENTS
+    HORDE_AGENTS -.->|Provides legal prose| HORDE_DISCLOSURE
+    
+    %% CONTINUOUS HORDE
+    HORDE_SECURITY -.->|Runs continuously from P0| HORDE_ARCH
+    HORDE_SECURITY -.->|Runs continuously| HORDE_SCHEMA
+    HORDE_SECURITY -.->|Runs continuously| HORDE_API
+    HORDE_SECURITY -.->|Runs continuously| HORDE_AGENTS
+    HORDE_SECURITY -.->|Runs continuously| HORDE_SCORING
+    HORDE_SECURITY -.->|Runs continuously| HORDE_DISCLOSURE
+    HORDE_SECURITY -.->|Runs continuously| HORDE_LEDGER
+    HORDE_SECURITY -.->|Runs continuously| HORDE_PORTAL
+    
+    %% PHASE GATES
+    subgraph P0_FOUNDATION["P0 Foundation"]
+        HORDE_ARCH
+        HORDE_INFRA
+        HORDE_SECURITY
+    end
+    
+    subgraph P1_LEXCORE_DB["P1 LexCore DB"]
+        HORDE_SCHEMA
+        HORDE_API
+        HORDE_INGEST
+        HORDE_EVAL
+    end
+    
+    subgraph P2_IP_PIPELINE["P2 IP Pipeline"]
+        HORDE_AGENTS
+        HORDE_SCORING
+        HORDE_DISCLOSURE
+        HORDE_EVAL
+    end
+    
+    subgraph P3_LEDGER_AUTO["P3 Ledger + Auto"]
+        HORDE_LEDGER
+        HORDE_AGENTS
+        HORDE_INFRA
+        HORDE_EVAL
+    end
+    
+    subgraph P4_PORTAL_HANDOFF["P4 Portal + Handoff"]
+        HORDE_PORTAL
+        HORDE_API
+        HORDE_SECURITY
+        HORDE_EVAL
+        HORDE_DOCS
+    end
+    
+    subgraph P5_HARDENING["P5 Hardening"]
+        HORDE_EVAL
+        HORDE_INFRA
+        HORDE_SECURITY
+        HORDE_DOCS
+        HORDE_SCHEMA
+    end
+    
+    %% PHASE TRANSITIONS
+    P0_FOUNDATION -->|Gate: Contracts hash locked, terraform clean, CI passes| P1_LEXCORE_DB
+    P1_LEXCORE_DB -->|Gate: ToolCallJudge ≥ 0.90, P95 < 300ms| P2_IP_PIPELINE
+    P2_IP_PIPELINE -->|Gate: Grounding ≥ 0.85, 7 fetchers live| P3_LEDGER_AUTO
+    P3_LEDGER_AUTO -->|Gate: BYOK test passes, pipeline < 3000ms| P4_PORTAL_HANDOFF
+    P4_PORTAL_HANDOFF -->|Gate: Tenant audit clean, flow < 5min| P5_HARDENING
+    P5_HARDENING -->|Gate: Agents ≥ 0.90, P99 < 10s, zero HIGH CVEs| PRODUCTION
+    
+    %% STYLING
+    classDef hardDep stroke:#ff0000,stroke-width:2px
+    classDef softDep stroke:#00ff00,stroke-width:2px,stroke-dasharray: 5 5
+    classDef continuous stroke:#0000ff,stroke-width:2px,stroke-dasharray: 2 2
+    classDef phaseBox fill:#f9f9f9,stroke:#333,stroke-width:2px
+    
+    class HORDE_ARCH,HORDE_SCHEMA,HORDE_API,HORDE_INGEST,HORDE_AGENTS,HORDE_SCORING,HORDE_DISCLOSURE,HORDE_LEDGER,HORDE_PORTAL hardDep
+    class HORDE_INFRA softDep
+    class HORDE_SECURITY continuous
+    class P0_FOUNDATION,P1_LEXCORE_DB,P2_IP_PIPELINE,P3_LEDGER_AUTO,P4_PORTAL_HANDOFF,P5_HARDENING phaseBox

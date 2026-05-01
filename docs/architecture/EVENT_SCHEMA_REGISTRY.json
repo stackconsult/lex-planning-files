@@ -1,0 +1,311 @@
+{
+  "schema_version": "v0.1.0-foundation",
+  "description": "Event schema registry for all async events in LexCore + LexRadar. Every event has a producer, consumers, payload schema, retry semantics, and DLQ configuration.",
+  "last_updated": "2026-04-29",
+  "event_bus": "Redis Streams (MVP) / Kafka (Enhancement Loop)",
+  "serialization": "JSON with snake_case keys",
+  "common_fields": {
+    "event_id": "UUID v4",
+    "event_name": "string (dot-notation: domain.action)",
+    "event_version": "string (semver: 1.0.0)",
+    "timestamp": "ISO 8601 datetime UTC",
+    "producer": "string (service/agent name)",
+    "correlation_id": "UUID (propagated across all events in a request chain)",
+    "tenant_id": "UUID (nullable for system events)"
+  },
+  "events": {
+    "lexcore.doc.ingested": {
+      "version": "1.0.0",
+      "producer": "AGT_INGEST",
+      "consumers": ["AGT_MONITOR", "AGT_CITE", "L6_observability"],
+      "payload": {
+        "document_id": "UUID",
+        "tenant_id": "UUID",
+        "source": "string (e.g., 'eCFR', 'CanLII')",
+        "jurisdiction": "string",
+        "body_of_law": "string",
+        "title": "string",
+        "citation": "string",
+        "chunk_count": "integer",
+        "ingest_duration_ms": "float",
+        "ingested_at": "ISO 8601 datetime"
+      },
+      "retry_semantics": "at_least_once",
+      "dead_letter_queue": true,
+      "description": "Fired when a document is fully ingested (parsed, chunked, embedded, stored)"
+    },
+    "lexcore.doc.updated": {
+      "version": "1.0.0",
+      "producer": "AGT_MONITOR",
+      "consumers": ["AGT_INGEST", "L6_observability", "notification_service"],
+      "payload": {
+        "document_id": "UUID",
+        "tenant_id": "UUID",
+        "previous_version": "object (snapshot of previous state)",
+        "current_version": "object (snapshot of new state)",
+        "change_type": "string ('AMENDMENT', 'REPEAL', 'NEW')",
+        "change_summary": "string",
+        "monitor_rule_id": "UUID",
+        "detected_at": "ISO 8601 datetime"
+      },
+      "retry_semantics": "at_least_once",
+      "dead_letter_queue": true,
+      "description": "Fired when a legislative change is detected by a monitor rule"
+    },
+    "lexcore.doc.deprecated": {
+      "version": "1.0.0",
+      "producer": "AGT_MONITOR",
+      "consumers": ["L6_observability", "notification_service"],
+      "payload": {
+        "document_id": "UUID",
+        "tenant_id": "UUID",
+        "reason": "string ('REPEALED', 'OVERRULED', 'SUPERSEDED')",
+        "superseded_by": "UUID | null",
+        "deprecated_at": "ISO 8601 datetime"
+      },
+      "retry_semantics": "at_least_once",
+      "dead_letter_queue": true,
+      "description": "Fired when a document is marked as no longer in force"
+    },
+    "lexcore.search.executed": {
+      "version": "1.0.0",
+      "producer": "AGT_SEARCH",
+      "consumers": ["L6_observability", "analytics_service"],
+      "payload": {
+        "query_id": "UUID",
+        "tenant_id": "UUID",
+        "query_fingerprint": "string (SHA-256)",
+        "query_normalized": "string",
+        "bam_compound": "object",
+        "result_count": "integer",
+        "cache_hit": "boolean",
+        "latency_ms": "float",
+        "agent_id": "string ('AGT_SEARCH')",
+        "executed_at": "ISO 8601 datetime"
+      },
+      "retry_semantics": "at_most_once",
+      "dead_letter_queue": false,
+      "description": "Fired after every search query (analytics, not critical)"
+    },
+    "lexcore.agent.dispatched": {
+      "version": "1.0.0",
+      "producer": "AGT_ROUTER",
+      "consumers": ["L6_observability", "audit_service"],
+      "payload": {
+        "dispatch_id": "UUID",
+        "tenant_id": "UUID",
+        "source_agent": "string ('AGT_ROUTER')",
+        "target_agent": "string",
+        "bam_compound": "object",
+        "input_summary": "string (truncated)",
+        "dispatched_at": "ISO 8601 datetime"
+      },
+      "retry_semantics": "at_most_once",
+      "dead_letter_queue": false,
+      "description": "Fired when AGT_ROUTER dispatches to another agent"
+    },
+    "lexradar.scan.triggered": {
+      "version": "1.0.0",
+      "producer": "L4_api (webhook handler)",
+      "consumers": ["AGT_SCANNER", "L6_observability"],
+      "payload": {
+        "scan_id": "UUID",
+        "tenant_id": "UUID",
+        "source": "string ('GitHub', 'Jira', 'Notion')",
+        "source_id": "string (repo ID, project ID, etc.)",
+        "trigger": "string ('webhook', 'manual', 'scheduled')",
+        "trigger_metadata": "object (webhook payload or scan config)",
+        "triggered_at": "ISO 8601 datetime"
+      },
+      "retry_semantics": "at_least_once",
+      "dead_letter_queue": true,
+      "description": "Fired when a code scan is triggered"
+    },
+    "lexradar.candidate.created": {
+      "version": "1.0.0",
+      "producer": "AGT_SIGNAL_CLASSIFIER",
+      "consumers": ["AGT_PRIORART", "L6_observability", "notification_service"],
+      "payload": {
+        "candidate_id": "UUID",
+        "tenant_id": "UUID",
+        "scan_id": "UUID",
+        "invention_id": "UUID",
+        "title": "string",
+        "signal_type": "string",
+        "confidence": "float (0.0-1.0)",
+        "source_url": "string (GitHub PR, Jira ticket, etc.)",
+        "created_at": "ISO 8601 datetime"
+      },
+      "retry_semantics": "at_least_once",
+      "dead_letter_queue": true,
+      "description": "Fired when a new invention candidate is detected"
+    },
+    "lexradar.disclosure.drafted": {
+      "version": "1.0.0",
+      "producer": "AGT_DISCLOSER",
+      "consumers": ["AGT_LEDGER", "L6_observability", "notification_service"],
+      "payload": {
+        "disclosure_id": "UUID",
+        "tenant_id": "UUID",
+        "invention_id": "UUID",
+        "grounding_score": "float (0.0-1.0)",
+        "sections": "object (10 LHP sections, truncated in event)",
+        "generation_duration_ms": "float",
+        "model_used": "string (e.g., 'gpt-4')",
+        "drafted_at": "ISO 8601 datetime"
+      },
+      "retry_semantics": "at_least_once",
+      "dead_letter_queue": true,
+      "description": "Fired when a disclosure draft is generated"
+    },
+    "lexradar.ledger.anchored": {
+      "version": "1.0.0",
+      "producer": "AGT_LEDGER",
+      "consumers": ["AGT_ATTYFLOW", "L6_observability"],
+      "payload": {
+        "anchor_id": "UUID",
+        "tenant_id": "UUID",
+        "invention_id": "UUID",
+        "disclosure_id": "UUID",
+        "document_hash": "string (SHA-256)",
+        "bundle_hash": "string (SHA-256)",
+        "polygon_tx_hash": "string (0x...)",
+        "polygon_block_number": "string",
+        "polygon_tx_timestamp": "ISO 8601 datetime",
+        "anchor_duration_ms": "float",
+        "anchored_at": "ISO 8601 datetime"
+      },
+      "retry_semantics": "at_least_once",
+      "dead_letter_queue": true,
+      "description": "Fired when proof is anchored to Polygon mainnet"
+    },
+    "lexradar.handoff.delivered": {
+      "version": "1.0.0",
+      "producer": "AGT_ATTYFLOW",
+      "consumers": ["email_service", "L6_observability"],
+      "payload": {
+        "handoff_id": "UUID",
+        "tenant_id": "UUID",
+        "invention_id": "UUID",
+        "disclosure_id": "UUID",
+        "attorney_email": "string",
+        "attorney_name": "string",
+        "portal_url": "string",
+        "expires_at": "ISO 8601 datetime",
+        "delivered_at": "ISO 8601 datetime"
+      },
+      "retry_semantics": "at_least_once",
+      "dead_letter_queue": true,
+      "description": "Fired when handoff package is delivered to attorney"
+    },
+    "lexradar.attorney.approved": {
+      "version": "1.0.0",
+      "producer": "L4_api (attorney portal)",
+      "consumers": ["L6_observability", "notification_service", "filing_service"],
+      "payload": {
+        "review_id": "UUID",
+        "tenant_id": "UUID",
+        "invention_id": "UUID",
+        "disclosure_id": "UUID",
+        "attorney_email": "string",
+        "attorney_name": "string",
+        "review_notes": "string | null",
+        "approved_at": "ISO 8601 datetime"
+      },
+      "retry_semantics": "at_least_once",
+      "dead_letter_queue": true,
+      "description": "Fired when attorney approves disclosure for filing"
+    },
+    "lexradar.attorney.rejected": {
+      "version": "1.0.0",
+      "producer": "L4_api (attorney portal)",
+      "consumers": ["L6_observability", "notification_service"],
+      "payload": {
+        "review_id": "UUID",
+        "tenant_id": "UUID",
+        "invention_id": "UUID",
+        "disclosure_id": "UUID",
+        "attorney_email": "string",
+        "attorney_name": "string",
+        "rejection_reason": "string",
+        "rejected_at": "ISO 8601 datetime"
+      },
+      "retry_semantics": "at_least_once",
+      "dead_letter_queue": true,
+      "description": "Fired when attorney rejects disclosure"
+    },
+    "system.user.signed_up": {
+      "version": "1.0.0",
+      "producer": "L4_api (auth handler)",
+      "consumers": ["analytics_service", "L6_observability", "email_service"],
+      "payload": {
+        "user_id": "UUID",
+        "tenant_id": "UUID",
+        "email": "string",
+        "tier": "string ('SOLO', 'FIRM', 'ENTERPRISE')",
+        "source": "string ('organic', 'referral', 'partner')",
+        "signed_up_at": "ISO 8601 datetime"
+      },
+      "retry_semantics": "at_most_once",
+      "dead_letter_queue": false,
+      "description": "Fired when new user completes signup"
+    },
+    "system.workspace.created": {
+      "version": "1.0.0",
+      "producer": "L4_api (workspace handler)",
+      "consumers": ["analytics_service", "L6_observability"],
+      "payload": {
+        "workspace_id": "UUID",
+        "tenant_id": "UUID",
+        "name": "string",
+        "jurisdictions": "array of strings",
+        "created_at": "ISO 8601 datetime"
+      },
+      "retry_semantics": "at_most_once",
+      "dead_letter_queue": false,
+      "description": "Fired when workspace is created"
+    },
+    "system.integration.connected": {
+      "version": "1.0.0",
+      "producer": "L4_api (integration handler)",
+      "consumers": ["analytics_service", "L6_observability"],
+      "payload": {
+        "integration_id": "UUID",
+        "tenant_id": "UUID",
+        "source": "string ('GitHub', 'Jira', 'Notion', 'Slack')",
+        "status": "string ('connected', 'failed')",
+        "connected_at": "ISO 8601 datetime"
+      },
+      "retry_semantics": "at_most_once",
+      "dead_letter_queue": false,
+      "description": "Fired when integration is connected or fails"
+    },
+    "system.first_value_action.completed": {
+      "version": "1.0.0",
+      "producer": "L4_api (activation handler)",
+      "consumers": ["analytics_service", "L6_observability", "email_service"],
+      "payload": {
+        "user_id": "UUID",
+        "tenant_id": "UUID",
+        "action_type": "string ('search_legal', 'handoff_reviewed', 'monitor_created')",
+        "action_metadata": "object",
+        "time_to_activation_minutes": "float",
+        "completed_at": "ISO 8601 datetime"
+      },
+      "retry_semantics": "at_most_once",
+      "dead_letter_queue": false,
+      "description": "THE activation gate — fired when user completes first value action"
+    }
+  },
+  "dead_letter_queue_config": {
+    "max_retries": 3,
+    "retry_backoff": "exponential (1s, 5s, 25s)",
+    "dlq_retention": "7 days",
+    "dlq_alert_threshold": "10 messages in 1 hour triggers alert"
+  },
+  "event_naming_convention": {
+    "format": "{domain}.{entity}.{action}",
+    "domains": ["lexcore", "lexradar", "system"],
+    "examples": ["lexcore.doc.ingested", "lexradar.scan.triggered", "system.user.signed_up"]
+  }
+}

@@ -1,0 +1,495 @@
+{
+  "schema_version": "v0.1.0-foundation",
+  "description": "Complete schema map for LexCore + LexRadar PostgreSQL database. All tables, columns, types, constraints, indexes, and defaults.",
+  "last_updated": "2026-04-29",
+  "total_tables": 24,
+  "lexcore_tables": ["legal_documents","legal_chunks","legal_citations","query_cache","monitor_rules","monitor_alerts","research_tasks","research_task_documents","research_task_citations","research_task_queries","jurisdictions"],
+  "lexradar_tables": ["invention_candidates","disclosures","prior_art","blockchain_anchors","filing_bundles","disclosures_filing_bundles","attorney_reviews"],
+  "platform_tables": ["tenants","users","roles_permissions","payment_plans","workspaces","api_keys","audit_log"],
+  "tables": {
+    "tenants": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"name","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"email","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"tier","type":"TEXT","nullable":false,"default":"'SOLO'","pk":false},
+        {"name":"payment_status","type":"TEXT","nullable":false,"default":"'TRIAL'","pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false},
+        {"name":"updated_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["tenants_name_idx","tenants_email_idx"],
+      "constraints": ["tenants_tier_check","tenants_payment_status_check"],
+      "rls": true,
+      "triggers": ["tenants_update_timestamp"]
+    },
+    "users": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"clerk_user_id","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"email","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"display_name","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"role","type":"TEXT","nullable":false,"default":"'member'","pk":false},
+        {"name":"is_active","type":"BOOLEAN","nullable":false,"default":"true","pk":false},
+        {"name":"last_login_at","type":"TIMESTAMPTZ","nullable":true,"default":null,"pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false},
+        {"name":"updated_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["users_tenant_id_idx","users_clerk_user_id_idx","users_email_idx","users_tenant_role_idx"],
+      "constraints": ["users_role_check","users_tenant_email_unique"],
+      "rls": true,
+      "triggers": ["users_update_timestamp"]
+    },
+    "roles_permissions": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"user_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"users.id ON DELETE CASCADE"},
+        {"name":"resource","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"action","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"scope","type":"TEXT","nullable":false,"default":"'tenant'","pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false},
+        {"name":"updated_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["roles_permissions_tenant_user_idx","roles_permissions_resource_action_idx"],
+      "constraints": ["roles_permissions_action_check","roles_permissions_scope_check"],
+      "rls": true,
+      "triggers": ["roles_permissions_update_timestamp"]
+    },
+    "payment_plans": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"plan_name","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"stripe_subscription_id","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"status","type":"TEXT","nullable":false,"default":"'TRIAL'","pk":false},
+        {"name":"started_at","type":"TIMESTAMPTZ","nullable":true,"default":null,"pk":false},
+        {"name":"expires_at","type":"TIMESTAMPTZ","nullable":true,"default":null,"pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false},
+        {"name":"updated_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["payment_plans_tenant_id_idx","payment_plans_status_idx","payment_plans_stripe_idx"],
+      "constraints": ["payment_plans_status_check"],
+      "rls": true,
+      "triggers": ["payment_plans_update_timestamp"]
+    },
+    "workspaces": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"name","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"description","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"settings","type":"JSONB","nullable":false,"default":"'{}'","pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false},
+        {"name":"updated_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["workspaces_tenant_id_idx","workspaces_name_idx"],
+      "constraints": ["workspaces_tenant_name_unique"],
+      "rls": true,
+      "triggers": ["workspaces_update_timestamp"]
+    },
+    "api_keys": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"key_hash","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"name","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"scopes","type":"TEXT","nullable":false,"default":"'read'","pk":false},
+        {"name":"is_active","type":"BOOLEAN","nullable":false,"default":"true","pk":false},
+        {"name":"last_used_at","type":"TIMESTAMPTZ","nullable":true,"default":null,"pk":false},
+        {"name":"expires_at","type":"TIMESTAMPTZ","nullable":true,"default":null,"pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false},
+        {"name":"updated_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["api_keys_tenant_id_idx","api_keys_is_active_idx","api_keys_expires_at_idx"],
+      "constraints": [],
+      "rls": true,
+      "triggers": ["api_keys_update_timestamp"]
+    },
+    "audit_log": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"action_type","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"entity_type","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"entity_id","type":"UUID","nullable":true,"default":null,"pk":false},
+        {"name":"user_id","type":"UUID","nullable":true,"default":null,"pk":false},
+        {"name":"details","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["audit_log_tenant_id_idx","audit_log_entity_type_id_idx","audit_log_created_at_idx"],
+      "constraints": [],
+      "rls": true,
+      "triggers": [],
+      "notes": "No update trigger — audit log is append-only"
+    },
+    "legal_documents": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"source","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"jurisdiction_code","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"body_of_law","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"title","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"citation","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"summary","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"url","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"version","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"metadata","type":"JSONB","nullable":false,"default":"'{}'","pk":false},
+        {"name":"published_date","type":"TIMESTAMPTZ","nullable":true,"default":null,"pk":false},
+        {"name":"last_modified","type":"TIMESTAMPTZ","nullable":true,"default":null,"pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false},
+        {"name":"updated_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["legal_documents_tenant_id_idx","legal_documents_jurisdiction_idx","legal_documents_body_of_law_idx","legal_documents_source_idx","legal_documents_citation_idx","legal_documents_published_date_idx","legal_documents_tenant_jurisdiction_body_idx"],
+      "constraints": ["legal_documents_body_of_law_check"],
+      "rls": true,
+      "triggers": ["legal_documents_update_timestamp"]
+    },
+    "legal_chunks": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"document_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"legal_documents.id ON DELETE CASCADE"},
+        {"name":"chunk_index","type":"INTEGER","nullable":false,"default":0,"pk":false},
+        {"name":"chunk_type","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"content","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"embedding","type":"VECTOR(1536)","nullable":true,"default":null,"pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["legal_chunks_tenant_id_idx","legal_chunks_document_id_idx","legal_chunks_chunk_type_idx","legal_chunks_tenant_document_chunk_idx"],
+      "constraints": ["legal_chunks_chunk_type_check"],
+      "rls": true,
+      "triggers": [],
+      "notes": "No update trigger — chunks are immutable after creation"
+    },
+    "legal_citations": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"citing_document_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"legal_documents.id ON DELETE CASCADE"},
+        {"name":"cited_document_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"legal_documents.id ON DELETE CASCADE"},
+        {"name":"citation_type","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"citation_context","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"location","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["legal_citations_tenant_id_idx","legal_citations_citing_idx","legal_citations_cited_idx","legal_citations_type_idx","legal_citations_tenant_citing_cited_idx"],
+      "constraints": ["legal_citations_type_check","legal_citations_citing_ne_cited"],
+      "rls": true,
+      "triggers": [],
+      "notes": "No update trigger — citations are immutable"
+    },
+    "query_cache": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"query_fingerprint","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"query_normalized","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"results","type":"JSONB","nullable":false,"default":null,"pk":false},
+        {"name":"latency_ms","type":"NUMERIC(10,3)","nullable":false,"default":0,"pk":false},
+        {"name":"result_count","type":"INTEGER","nullable":false,"default":0,"pk":false},
+        {"name":"expires_at","type":"TIMESTAMPTZ","nullable":false,"default":"now() + interval '24 hours'","pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false},
+        {"name":"updated_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["query_cache_tenant_id_idx","query_cache_fingerprint_idx","query_cache_expires_at_idx","query_cache_tenant_fingerprint_unique"],
+      "constraints": [],
+      "rls": true,
+      "triggers": ["query_cache_update_timestamp"]
+    },
+    "monitor_rules": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"rule_name","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"jurisdiction_codes","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"body_of_law","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"keywords","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"status","type":"TEXT","nullable":false,"default":"'ACTIVE'","pk":false},
+        {"name":"last_triggered_at","type":"TIMESTAMPTZ","nullable":true,"default":null,"pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false},
+        {"name":"updated_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["monitor_rules_tenant_id_idx","monitor_rules_status_idx","monitor_rules_last_triggered_idx"],
+      "constraints": ["monitor_rules_status_check"],
+      "rls": true,
+      "triggers": ["monitor_rules_update_timestamp"]
+    },
+    "monitor_alerts": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"rule_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"monitor_rules.id ON DELETE CASCADE"},
+        {"name":"document_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"legal_documents.id ON DELETE SET NULL"},
+        {"name":"alert_type","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"change_summary","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"previous_version_url","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"current_version_url","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"acknowledged","type":"BOOLEAN","nullable":false,"default":"false","pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false},
+        {"name":"updated_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["monitor_alerts_tenant_id_idx","monitor_alerts_rule_id_idx","monitor_alerts_document_id_idx","monitor_alerts_alert_type_idx","monitor_alerts_acknowledged_idx","monitor_alerts_created_at_idx"],
+      "constraints": ["monitor_alerts_type_check"],
+      "rls": true,
+      "triggers": ["monitor_alerts_update_timestamp"]
+    },
+    "research_tasks": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"question","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"status","type":"TEXT","nullable":false,"default":"'PENDING'","pk":false},
+        {"name":"result_report","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"confidence","type":"NUMERIC(3,2)","nullable":true,"default":null,"pk":false},
+        {"name":"gap_detected","type":"BOOLEAN","nullable":false,"default":"false","pk":false},
+        {"name":"gaps","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"started_at","type":"TIMESTAMPTZ","nullable":true,"default":null,"pk":false},
+        {"name":"completed_at","type":"TIMESTAMPTZ","nullable":true,"default":null,"pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false},
+        {"name":"updated_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["research_tasks_tenant_id_idx","research_tasks_status_idx","research_tasks_created_at_idx"],
+      "constraints": ["research_tasks_status_check","research_tasks_confidence_check"],
+      "rls": true,
+      "triggers": ["research_tasks_update_timestamp"]
+    },
+    "research_task_documents": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"task_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"research_tasks.id ON DELETE CASCADE"},
+        {"name":"document_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"legal_documents.id ON DELETE CASCADE"},
+        {"name":"relevance_score","type":"NUMERIC(4,3)","nullable":false,"default":0,"pk":false},
+        {"name":"sort_order","type":"INTEGER","nullable":false,"default":0,"pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["research_task_documents_tenant_task_idx","research_task_documents_tenant_doc_idx","research_task_documents_sort_order_idx"],
+      "constraints": [],
+      "rls": true,
+      "triggers": [],
+      "notes": "Immutable join table"
+    },
+    "research_task_citations": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"task_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"research_tasks.id ON DELETE CASCADE"},
+        {"name":"citation_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"legal_citations.id ON DELETE CASCADE"},
+        {"name":"sort_order","type":"INTEGER","nullable":false,"default":0,"pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["research_task_citations_tenant_task_idx","research_task_citations_sort_order_idx"],
+      "constraints": [],
+      "rls": true,
+      "triggers": [],
+      "notes": "Immutable join table"
+    },
+    "research_task_queries": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"task_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"research_tasks.id ON DELETE CASCADE"},
+        {"name":"query_text","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"query_index","type":"INTEGER","nullable":false,"default":0,"pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["research_task_queries_tenant_task_idx","research_task_queries_query_index_idx"],
+      "constraints": [],
+      "rls": true,
+      "triggers": [],
+      "notes": "Immutable"
+    },
+    "jurisdictions": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"jurisdiction_code","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"jurisdiction_name","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"is_active","type":"BOOLEAN","nullable":false,"default":"true","pk":false},
+        {"name":"coverage_percent","type":"NUMERIC(5,2)","nullable":false,"default":0,"pk":false},
+        {"name":"document_count","type":"INTEGER","nullable":false,"default":0,"pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false},
+        {"name":"updated_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["jurisdictions_tenant_id_idx","jurisdictions_code_idx","jurisdictions_coverage_idx","jurisdictions_tenant_code_unique"],
+      "constraints": ["jurisdictions_coverage_check"],
+      "rls": true,
+      "triggers": ["jurisdictions_update_timestamp"]
+    },
+    "invention_candidates": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"title","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"description","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"source_url","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"source_type","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"novelty_score","type":"NUMERIC(3,2)","nullable":true,"default":null,"pk":false},
+        {"name":"nonobviousness_score","type":"NUMERIC(3,2)","nullable":true,"default":null,"pk":false},
+        {"name":"utility_score","type":"NUMERIC(3,2)","nullable":true,"default":null,"pk":false},
+        {"name":"enablement_score","type":"NUMERIC(3,2)","nullable":true,"default":null,"pk":false},
+        {"name":"scope_score","type":"NUMERIC(3,2)","nullable":true,"default":null,"pk":false},
+        {"name":"evidence_score","type":"NUMERIC(3,2)","nullable":true,"default":null,"pk":false},
+        {"name":"composite_score","type":"NUMERIC(3,2)","nullable":true,"default":null,"pk":false},
+        {"name":"status","type":"TEXT","nullable":false,"default":"'DETECTED'","pk":false},
+        {"name":"detected_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false},
+        {"name":"scored_at","type":"TIMESTAMPTZ","nullable":true,"default":null,"pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false},
+        {"name":"updated_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["invention_candidates_tenant_id_idx","invention_candidates_status_idx","invention_candidates_composite_score_idx","invention_candidates_source_type_idx","invention_candidates_detected_at_idx"],
+      "constraints": ["invention_candidates_status_check","invention_candidates_score_range_check","invention_candidates_source_type_check"],
+      "rls": true,
+      "triggers": ["invention_candidates_update_timestamp"]
+    },
+    "disclosures": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"invention_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"invention_candidates.id ON DELETE CASCADE"},
+        {"name":"title","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"inventor","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"abstract","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"background","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"summary","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"detailed_description","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"claims","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"drawings_description","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"abstract_of_invention","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"advantages","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"alternative_implementations","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"example","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"prior_art_summary","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"references","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"grounding_sources","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"additional_materials","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"status","type":"TEXT","nullable":false,"default":"'DRAFT'","pk":false},
+        {"name":"grounding_score","type":"NUMERIC(3,2)","nullable":true,"default":null,"pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false},
+        {"name":"updated_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["disclosures_tenant_id_idx","disclosures_invention_id_idx","disclosures_status_idx","disclosures_grounding_score_idx","disclosures_tenant_status_created_idx"],
+      "constraints": ["disclosures_status_check","disclosures_grounding_score_check"],
+      "rls": true,
+      "triggers": ["disclosures_update_timestamp"]
+    },
+    "prior_art": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"invention_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"invention_candidates.id ON DELETE CASCADE"},
+        {"name":"source","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"patent_number","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"title","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"authors","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"url","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"abstract","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"relevance_summary","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"relevance_score","type":"NUMERIC(3,2)","nullable":true,"default":null,"pk":false},
+        {"name":"published_date","type":"TIMESTAMPTZ","nullable":true,"default":null,"pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false},
+        {"name":"updated_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["prior_art_tenant_id_idx","prior_art_invention_id_idx","prior_art_source_idx","prior_art_relevance_score_idx","prior_art_patent_number_idx"],
+      "constraints": ["prior_art_source_check","prior_art_relevance_score_check"],
+      "rls": true,
+      "triggers": ["prior_art_update_timestamp"]
+    },
+    "blockchain_anchors": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"entity_id","type":"UUID","nullable":false,"default":null,"pk":false},
+        {"name":"entity_type","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"document_hash","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"bundle_hash","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"polygon_tx_hash","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"polygon_block_number","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"polygon_tx_timestamp","type":"TIMESTAMPTZ","nullable":true,"default":null,"pk":false},
+        {"name":"anchored_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false},
+        {"name":"updated_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["blockchain_anchors_tenant_id_idx","blockchain_anchors_entity_id_idx","blockchain_anchors_polygon_tx_idx","blockchain_anchors_tenant_entity_type_idx"],
+      "constraints": ["blockchain_anchors_entity_type_check","blockchain_anchors_document_hash_format"],
+      "rls": true,
+      "triggers": ["blockchain_anchors_update_timestamp"]
+    },
+    "filing_bundles": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"bundle_name","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"status","type":"TEXT","nullable":false,"default":"'DRAFT'","pk":false},
+        {"name":"patent_type","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"package_url","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"package_size_mb","type":"NUMERIC(10,2)","nullable":true,"default":null,"pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false},
+        {"name":"updated_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["filing_bundles_tenant_id_idx","filing_bundles_status_idx","filing_bundles_patent_type_idx"],
+      "constraints": ["filing_bundles_status_check","filing_bundles_patent_type_check"],
+      "rls": true,
+      "triggers": ["filing_bundles_update_timestamp"]
+    },
+    "disclosures_filing_bundles": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"disclosure_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"disclosures.id ON DELETE CASCADE"},
+        {"name":"filing_bundle_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"filing_bundles.id ON DELETE CASCADE"},
+        {"name":"sort_order","type":"INTEGER","nullable":false,"default":0,"pk":false},
+        {"name":"role","type":"TEXT","nullable":false,"default":"'PRIMARY'","pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false},
+        {"name":"updated_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["disclosures_filing_bundles_tenant_disclosure_idx","disclosures_filing_bundles_tenant_bundle_idx","disclosures_filing_bundles_sort_order_idx"],
+      "constraints": ["disclosures_filing_bundles_role_check","disclosures_filing_bundles_disclosure_bundle_unique"],
+      "rls": true,
+      "triggers": ["disclosures_filing_bundles_update_timestamp"]
+    },
+    "attorney_reviews": {
+      "columns": [
+        {"name":"id","type":"UUID","nullable":false,"default":"gen_random_uuid()","pk":true},
+        {"name":"tenant_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"tenants.id ON DELETE CASCADE"},
+        {"name":"disclosure_id","type":"UUID","nullable":false,"default":null,"pk":false,"fk":"disclosures.id ON DELETE CASCADE"},
+        {"name":"attorney_email","type":"TEXT","nullable":false,"default":null,"pk":false},
+        {"name":"attorney_name","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"status","type":"TEXT","nullable":false,"default":"'PENDING'","pk":false},
+        {"name":"review_notes","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"rejection_reason","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"request_changes_details","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"portal_url","type":"TEXT","nullable":true,"default":null,"pk":false},
+        {"name":"expires_at","type":"TIMESTAMPTZ","nullable":false,"default":"now() + interval '48 hours'","pk":false},
+        {"name":"reviewed_at","type":"TIMESTAMPTZ","nullable":true,"default":null,"pk":false},
+        {"name":"created_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false},
+        {"name":"updated_at","type":"TIMESTAMPTZ","nullable":false,"default":"now()","pk":false}
+      ],
+      "indexes": ["attorney_reviews_tenant_id_idx","attorney_reviews_disclosure_id_idx","attorney_reviews_status_idx","attorney_reviews_expires_at_idx","attorney_reviews_tenant_disclosure_unique"],
+      "constraints": ["attorney_reviews_status_check","attorney_reviews_email_format"],
+      "rls": true,
+      "triggers": ["attorney_reviews_update_timestamp"]
+    }
+  },
+  "common_enums": {
+    "tier": ["SOLO","FIRM","ENTERPRISE"],
+    "body_of_law": ["STATUTE","REGULATION","CASE"],
+    "chunk_type": ["SECTION","PARAGRAPH","SENTENCE"],
+    "citation_type": ["FORWARD","BACKWARD"],
+    "alert_type": ["AMENDMENT","REPEAL","NEW"],
+    "research_status": ["PENDING","RUNNING","COMPLETED","FAILED"],
+    "payment_status": ["TRIAL","ACTIVE","CANCELLED","PAST_DUE"],
+    "invention_status": ["DETECTED","SCORING","SCORED","DISCLOSING","DISCLOSED","FILED"],
+    "disclosure_status": ["DRAFT","REVIEWING","APPROVED","REJECTED","REQUESTED_CHANGES"],
+    "prior_art_source": ["USPTO","WIPO","EPO","Lens","GooglePatents","PatentScope","IPcom"],
+    "entity_type": ["INVENTION","DISCLOSURE","FILING_BUNDLE"],
+    "filing_status": ["DRAFT","READY","SUBMITTED","ARCHIVED"],
+    "patent_type": ["PROVISIONAL","NON_PROVISIONAL","PCT"],
+    "bundle_role": ["PRIMARY","SECONDARY","REFERENCE"],
+    "review_status": ["PENDING","IN_PROGRESS","APPROVED","REJECTED","REQUESTED_CHANGES"],
+    "monitor_status": ["ACTIVE","PAUSED","ARCHIVED"],
+    "user_role": ["admin","member","viewer"]
+  }
+}

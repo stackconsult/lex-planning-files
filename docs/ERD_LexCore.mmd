@@ -1,0 +1,161 @@
+# LexCore ERD
+# 10 Tables with BAM Matrix Integration
+
+erDiagram
+    tenants ||--o{ legal_documents : "owns"
+    tenants ||--o{ agent_queries : "logs"
+    tenants ||--o{ monitor_rules : "configures"
+    tenants ||--o{ query_cache : "caches"
+    
+    legal_documents ||--o{ legal_chunks : "contains"
+    legal_documents ||--o{ legal_citations : "cites"
+    legal_documents ||--o{ legal_updates : "tracked in"
+    
+    legal_chunks ||--o{ legal_citations : "cites"
+    legal_chunks ||--o{ agent_queries : "retrieved in"
+    
+    agent_manifest ||--o{ eval_runs : "evaluated"
+    
+    tenants {
+        uuid id PK
+        string name
+        string tier "SOLO|FIRM|ENTERPRISE"
+        timestamp created_at
+        timestamp updated_at
+        boolean is_active
+        jsonb metadata
+    }
+    
+    legal_documents {
+        uuid id PK
+        uuid tenant_id FK
+        string title
+        string title_fr "bilingual support"
+        string citation
+        string body_of_law "STATUTE|REGULATION|CASE"
+        string jurisdiction "J_US_FED|J_CA_FED|etc."
+        string doc_type
+        text full_text
+        timestamp effective_date
+        timestamp retrieved_at
+        float data_quality_score
+        string source "eCFR|CanLII|CourtListener|etc."
+        boolean is_repealed
+        uuid overruled_by FK "nullable"
+        jsonb bam_compound "routing signal"
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    legal_chunks {
+        uuid id PK
+        uuid document_id FK
+        uuid tenant_id FK
+        string section_path "hierarchical path"
+        integer chunk_order
+        text chunk_text
+        vector(1536) embedding "pgvector HNSW"
+        integer token_count
+        float chunk_quality_score
+        jsonb bam_signal "BAM routing compound"
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    legal_citations {
+        uuid id PK
+        uuid citing_chunk_id FK
+        uuid cited_document_id FK
+        string citation_type "DIRECT|IMPLIED|OVERRULING"
+        string court
+        string jurisdiction
+        timestamp decision_date
+        jsonb citation_metadata
+        timestamp created_at
+    }
+    
+    agent_queries {
+        uuid id PK
+        uuid tenant_id FK
+        string agent_id "AGT_ROUTER|AGT_SEARCH|etc."
+        jsonb bam_compound "routing decision"
+        text query_text
+        text query_normalized
+        string query_fingerprint "SHA256"
+        integer result_count
+        integer cache_hit "boolean as int"
+        float latency_ms
+        jsonb query_params
+        timestamp created_at
+    }
+    
+    query_cache {
+        uuid id PK
+        uuid tenant_id FK
+        string query_fingerprint UK
+        text query_normalized
+        jsonb result_set
+        integer hit_count
+        timestamp last_accessed
+        timestamp ttl_expires
+        timestamp created_at
+    }
+    
+    monitor_rules {
+        uuid id PK
+        uuid tenant_id FK
+        string jurisdiction
+        string body_of_law
+        string alert_type "CHANGE|REPEAL|NEW"
+        jsonb criteria
+        boolean is_active
+        timestamp last_checked
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    legal_updates {
+        uuid id PK
+        uuid document_id FK
+        uuid monitor_rule_id FK
+        string update_type "CHANGE|REPEAL|NEW"
+        text change_summary
+        jsonb previous_version
+        jsonb current_version
+        timestamp detected_at
+        boolean alert_sent
+        timestamp created_at
+    }
+    
+    eval_runs {
+        uuid id PK
+        string schema_version
+        jsonb lane_contracts
+        jsonb completed_outputs
+        jsonb open_blockers
+        timestamp last_updated
+    }
+    
+    agent_manifest {
+        uuid id PK
+        timestamp run_at
+        string git_sha
+        float precision_at_5
+        float recall_at_10
+        float ndcg_at_10
+        float citation_accuracy
+        integer total_test_cases
+        integer passed_cases
+        boolean gate_passed
+        text notes
+    }
+
+    tenants {
+        uuid id PK
+        string name
+        string tier
+        timestamp created_at
+        timestamp updated_at
+        boolean is_active
+        jsonb metadata
+    }

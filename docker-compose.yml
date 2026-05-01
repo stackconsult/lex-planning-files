@@ -1,0 +1,211 @@
+# LexCore + LexRadar Local Development Stack
+# Services: PostgreSQL (pgvector), Redis, Qdrant, Vault, API
+
+version: "3.8"
+
+services:
+  # ============================================================================
+  # PostgreSQL with pgvector extension
+  # ============================================================================
+  postgres:
+    image: ankane/pgvector:latest
+    container_name: lexcore-postgres
+    environment:
+      POSTGRES_USER: lexcore
+      POSTGRES_PASSWORD: lexcore_dev_password
+      POSTGRES_DB: lexcore
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+      - ./backend/migrations/002_rls_policies.sql:/docker-entrypoint-initdb.d/02_rls.sql
+      - ./backend/migrations/003_pgvector_indexes.sql:/docker-entrypoint-initdb.d/03_indexes.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lexcore -d lexcore"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lexcore-network
+
+  # ============================================================================
+  # Redis (for caching, sessions, job queue)
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: lexcore-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --appendfsync everysec --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lexcore-network
+
+  # ============================================================================
+  # Qdrant (vector database)
+  # ============================================================================
+  qdrant:
+    image: qdrant/qdrant:v1.7.0
+    container_name: lexcore-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__HTTP_PORT: 6333
+      QDRANT__SERVICE__GRPC_PORT: 6334
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lexcore-network
+
+  # ============================================================================
+  # HashiCorp Vault (for secrets management, BYOK)
+  # ============================================================================
+  vault:
+    image: hashicorp/vault:latest
+    container_name: lexcore-vault
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: dev-token-only-for-local
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    volumes:
+      - vault_data:/vault/file
+    cap_add:
+      - IPC_LOCK
+    command: server -dev -dev-root-token-id="dev-token-only-for-local"
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lexcore-network
+
+  # ============================================================================
+  # LexCore API
+  # ============================================================================
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: lexcore-api
+    ports:
+      - "8000:8000"
+    environment:
+      LEXCORE_ENVIRONMENT: development
+      LEXCORE_DATABASE_URL: postgresql+asyncpg://lexcore:lexcore_dev_password@postgres:5432/lexcore
+      LEXCORE_REDIS_URL: redis://redis:6379/0
+      LEXCORE_QDRANT_URL: http://qdrant:6333
+      LEXCORE_VAULT_ADDR: http://vault:8200
+      LEXCORE_VAULT_TOKEN: dev-token-only-for-local
+      LEXCORE_JWT_SECRET: local-dev-secret-change-in-production
+      LEXCORE_LOG_LEVEL: DEBUG
+      LEXCORE_OTEL_EXPORTER_OTLP_ENDPOINT: ""
+      LEXCORE_CORS_ORIGINS: '["*"]'
+      LEXCORE_ALLOWED_HOSTS: '["*"]'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - lexcore-network
+    volumes:
+      - ./backend/src:/app/src:ro  # Hot reload for development
+      - ./backend/migrations:/app/migrations:ro  # Migration SQL files
+
+  # ============================================================================
+  # Alembic Migrations Runner (one-off)
+  # ============================================================================
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: lexcore-migrate
+    environment:
+      LEXCORE_DATABASE_URL: postgresql+asyncpg://lexcore:lexcore_dev_password@postgres:5432/lexcore
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - lexcore-network
+    profiles:
+      - migrate  # Only run when explicitly requested: docker-compose --profile migrate up migrate
+
+  # ============================================================================
+  # Prometheus (monitoring)
+  # ============================================================================
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: lexcore-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/k8s/monitoring/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    networks:
+      - lexcore-network
+    profiles:
+      - monitoring
+
+  # ============================================================================
+  # Grafana (dashboards)
+  # ============================================================================
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: lexcore-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    volumes:
+      - ./infra/k8s/monitoring/grafana-dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
+      - grafana_data:/var/lib/grafana
+    networks:
+      - lexcore-network
+    profiles:
+      - monitoring
+
+volumes:
+  postgres_data:
+  redis_data:
+  qdrant_data:
+  vault_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  lexcore-network:
+    driver: bridge

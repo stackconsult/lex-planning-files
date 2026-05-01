@@ -1,0 +1,235 @@
+{
+  "schema_version": "v0.1.0-foundation",
+  "description": "Dependency graph for LexCore + LexRadar system components. Directed acyclic graph — no cycles permitted.",
+  "last_updated": "2026-04-29",
+  "nodes": {
+    "L0_sources": {
+      "type": "external",
+      "description": "External data sources — 9 legal + 7 patent + 3 code sources"
+    },
+    "L1_connectors": {
+      "type": "ingestion",
+      "description": "Document connectors, parsers, chunkers, embedding service"
+    },
+    "L2_storage": {
+      "type": "storage",
+      "description": "PostgreSQL, Redis, Qdrant, S3"
+    },
+    "L3_services": {
+      "type": "service",
+      "description": "Business logic services and workers"
+    },
+    "L3_agents": {
+      "type": "agent",
+      "description": "14 agents — LexCore (7) + LexRadar (7)"
+    },
+    "L4_api": {
+      "type": "api",
+      "description": "FastAPI application — MCP tools, domain routes, auth"
+    },
+    "L5_frontend": {
+      "type": "frontend",
+      "description": "Next.js 14 App Router — LexCore UI + Attorney Portal"
+    },
+    "L6_observability": {
+      "type": "observability",
+      "description": "Prometheus, Grafana, Loki, OpenTelemetry, structlog"
+    },
+    "L7_infrastructure": {
+      "type": "infrastructure",
+      "description": "Terraform, Kubernetes, CI/CD, Vault"
+    }
+  },
+  "edges": [
+    {
+      "from": "L0_sources",
+      "to": "L1_connectors",
+      "type": "data_flow",
+      "description": "Raw documents fetched from external APIs"
+    },
+    {
+      "from": "L1_connectors",
+      "to": "L2_storage",
+      "type": "data_flow",
+      "description": "Parsed documents, chunks, embeddings stored"
+    },
+    {
+      "from": "L2_storage",
+      "to": "L3_services",
+      "type": "data_flow",
+      "description": "Services read/write data through repositories"
+    },
+    {
+      "from": "L2_storage",
+      "to": "L3_agents",
+      "type": "data_flow",
+      "description": "Agents read context, write results"
+    },
+    {
+      "from": "L3_services",
+      "to": "L4_api",
+      "type": "call",
+      "description": "API routes delegate to service layer"
+    },
+    {
+      "from": "L3_agents",
+      "to": "L3_services",
+      "type": "call",
+      "description": "Agents use shared services (search, embed, etc.)"
+    },
+    {
+      "from": "L3_agents",
+      "to": "L4_api",
+      "type": "event",
+      "description": "Agent events published to API event bus"
+    },
+    {
+      "from": "L4_api",
+      "to": "L5_frontend",
+      "type": "data_flow",
+      "description": "API responses consumed by frontend"
+    },
+    {
+      "from": "L4_api",
+      "to": "L6_observability",
+      "type": "telemetry",
+      "description": "Metrics, logs, traces emitted from API"
+    },
+    {
+      "from": "L3_services",
+      "to": "L6_observability",
+      "type": "telemetry",
+      "description": "Service-level metrics and logs"
+    },
+    {
+      "from": "L3_agents",
+      "to": "L6_observability",
+      "type": "telemetry",
+      "description": "Agent action audit events"
+    },
+    {
+      "from": "L7_infrastructure",
+      "to": "L2_storage",
+      "type": "provisions",
+      "description": "Terraform provisions databases, cache, storage"
+    },
+    {
+      "from": "L7_infrastructure",
+      "to": "L4_api",
+      "type": "deploys",
+      "description": "CI/CD deploys API to Kubernetes"
+    },
+    {
+      "from": "L7_infrastructure",
+      "to": "L5_frontend",
+      "type": "deploys",
+      "description": "CI/CD deploys frontend to Vercel/CloudFront"
+    },
+    {
+      "from": "L7_infrastructure",
+      "to": "L6_observability",
+      "type": "provisions",
+      "description": "Terraform provisions monitoring stack"
+    }
+  ],
+  "agent_dependencies": {
+    "AGT_ROUTER": {
+      "inputs": ["BAM compound from query"],
+      "outputs": ["Agent dispatch decision"],
+      "depends_on": [],
+      "description": "Entry point — no dependencies"
+    },
+    "AGT_SEARCH": {
+      "inputs": ["Query text", "BAM compound"],
+      "outputs": ["Ranked document list", "Cache key"],
+      "depends_on": ["AGT_ROUTER"],
+      "description": "Receives dispatch from router"
+    },
+    "AGT_ANALYSIS": {
+      "inputs": ["Research question", "Document corpus"],
+      "outputs": ["Structured report", "Citation chain"],
+      "depends_on": ["AGT_SEARCH", "AGT_CITE"],
+      "description": "Uses search results and citation graph"
+    },
+    "AGT_DRAFT": {
+      "inputs": ["Document template", "Evidence corpus"],
+      "outputs": ["Draft document"],
+      "depends_on": ["AGT_SEARCH"],
+      "description": "Uses search results for drafting"
+    },
+    "AGT_INGEST": {
+      "inputs": ["Raw document", "Source metadata"],
+      "outputs": ["Parsed document", "Chunks", "Embeddings"],
+      "depends_on": [],
+      "description": "Independent — triggered by connectors"
+    },
+    "AGT_MONITOR": {
+      "inputs": ["Monitor rules", "Legislative feed"],
+      "outputs": ["Change alerts", "Updated documents"],
+      "depends_on": ["AGT_INGEST"],
+      "description": "Triggers ingest for new/updated documents"
+    },
+    "AGT_CITE": {
+      "inputs": ["Document ID", "Citation direction"],
+      "outputs": ["Citation graph", "Authority chain"],
+      "depends_on": ["AGT_INGEST"],
+      "description": "Requires ingested documents"
+    },
+    "AGT_SCANNER": {
+      "inputs": ["GitHub/Jira/Notion webhooks"],
+      "outputs": ["Invention signals"],
+      "depends_on": [],
+      "description": "Independent — triggered by webhooks"
+    },
+    "AGT_SIGNAL_CLASSIFIER": {
+      "inputs": ["Invention signals"],
+      "outputs": ["Classified signals", "Invention candidates"],
+      "depends_on": ["AGT_SCANNER"],
+      "description": "Processes scanner output"
+    },
+    "AGT_PRIORART": {
+      "inputs": ["Invention candidate", "Search keywords"],
+      "outputs": ["Prior art results", "Relevance scores"],
+      "depends_on": ["AGT_SIGNAL_CLASSIFIER"],
+      "description": "Searches for prior art on candidates"
+    },
+    "AGT_SCORER": {
+      "inputs": ["Invention candidate", "Prior art results"],
+      "outputs": ["6-dimension scores", "Composite score"],
+      "depends_on": ["AGT_PRIORART", "AGT_SIGNAL_CLASSIFIER"],
+      "description": "Scores after prior art search"
+    },
+    "AGT_DISCLOSER": {
+      "inputs": ["Invention candidate", "Prior art", "Scores"],
+      "outputs": ["10-section disclosure draft"],
+      "depends_on": ["AGT_SCORER", "AGT_PRIORART"],
+      "description": "Generates disclosure after scoring"
+    },
+    "AGT_LEDGER": {
+      "inputs": ["Disclosure draft", "Filing bundle"],
+      "outputs": ["Blockchain tx hash", "Proof certificate"],
+      "depends_on": ["AGT_DISCLOSER"],
+      "description": "Anchors after disclosure finalized"
+    },
+    "AGT_ATTYFLOW": {
+      "inputs": ["Handoff package", "Attorney email"],
+      "outputs": ["Scoped JWT", "Portal link", "Notification"],
+      "depends_on": ["AGT_LEDGER"],
+      "description": "Handoff after ledger anchoring"
+    }
+  },
+  "critical_path": [
+    "L0_sources",
+    "L1_connectors",
+    "L2_storage",
+    "L3_services",
+    "L4_api",
+    "L5_frontend"
+  ],
+  "cycle_check": {
+    "algorithm": "DFS topological sort",
+    "result": "NO_CYCLES_DETECTED",
+    "verified": "2026-04-29",
+    "tool": "networkx"
+  }
+}

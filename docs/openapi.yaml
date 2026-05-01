@@ -1,0 +1,992 @@
+openapi: 3.1.0
+info:
+  title: LexCore + LexRadar API
+  description: |
+    Complete API specification for LexCore legal intelligence database and LexRadar IP detection system.
+    
+    ## Authentication
+    All endpoints require authentication via either:
+    - JWT Bearer token (access + refresh tokens)
+    - API key (tenant-specific)
+    
+    ## Rate Limiting
+    Rate limits are enforced per-tenant based on tier:
+    - Solo: 10K queries/month
+    - Firm: Unlimited
+    - Enterprise: Unlimited + self-host
+    
+    ## BAM Routing
+    All requests include BAM compound signals for agent routing.
+  version: 1.0.0
+  contact:
+    name: LexCore API Team
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://api.lexcore.io/v1
+    description: Production server
+  - url: https://staging.lexcore.io/v1
+    description: Staging server
+  - url: http://localhost:8000/v1
+    description: Local development
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []
+
+tags:
+  - name: mcp
+    description: Model Context Protocol tools
+  - name: lexcore
+    description: LexCore legal intelligence endpoints
+  - name: lexradar
+    description: LexRadar IP detection endpoints
+  - name: auth
+    description: Authentication endpoints
+
+paths:
+  # ============================================================================
+  # MCP TOOLS (7 tools)
+  # ============================================================================
+  /mcp/get_capabilities:
+    get:
+      tags:
+        - mcp
+      summary: Get system capabilities
+      description: Returns full jurisdiction + doc type manifest
+      operationId: getCapabilities
+      responses:
+        '200':
+          description: Capabilities retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapabilitiesResponse'
+              headers:
+                X-RateLimit-Limit:
+                  schema:
+                    type: integer
+                X-RateLimit-Remaining:
+                  schema:
+                    type: integer
+                X-RateLimit-Reset:
+                  schema:
+                    type: integer
+
+  /mcp/search_legal:
+    post:
+      tags:
+        - mcp
+      summary: Search legal documents
+      description: Hybrid search combining pgvector + full-text search with BAM routing
+      operationId: searchLegal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchLegalRequest'
+      responses:
+        '200':
+          description: Search results returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchLegalResponse'
+
+  /mcp/research_task:
+    post:
+      tags:
+        - mcp
+      summary: Execute research task
+      description: Complex research with question decomposition and parallel search
+      operationId: researchTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResearchTaskRequest'
+      responses:
+        '200':
+          description: Research report generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResearchTaskResponse'
+
+  /mcp/get_document:
+    get:
+      tags:
+        - mcp
+      summary: Get document by ID or citation
+      description: Retrieve full document with all chunks and citations
+      operationId: getDocument
+      parameters:
+        - name: doc_id
+          in: query
+          schema:
+            type: string
+          description: Document UUID
+        - name: citation
+          in: query
+          schema:
+            type: string
+          description: Document citation
+      responses:
+        '200':
+          description: Document retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+
+  /mcp/get_citations:
+    get:
+      tags:
+        - mcp
+      summary: Get citation graph
+      description: Retrieve citation graph up to specified depth
+      operationId: getCitations
+      parameters:
+        - name: doc_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [forward, backward, both]
+            default: both
+        - name: depth
+          in: query
+          schema:
+            type: integer
+            default: 3
+            maximum: 5
+      responses:
+        '200':
+          description: Citation graph retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CitationGraphResponse'
+
+  /mcp/check_updates:
+    get:
+      tags:
+        - mcp
+      summary: Check for legal updates
+      description: Returns all legislative changes since specified date
+      operationId: checkUpdates
+      parameters:
+        - name: jurisdiction
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: since_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Updates retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegalUpdatesResponse'
+
+  /mcp/jurisdiction_summary:
+    get:
+      tags:
+        - mcp
+      summary: Get jurisdiction summary
+      description: Returns coverage %, doc count, recent changes
+      operationId: jurisdictionSummary
+      parameters:
+        - name: jurisdiction_code
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Summary retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JurisdictionSummaryResponse'
+
+  # ============================================================================
+  # LEXCORE ENDPOINTS
+  # ============================================================================
+  /lexcore/documents:
+    get:
+      tags:
+        - lexcore
+      summary: List documents
+      operationId: listDocuments
+      parameters:
+        - name: jurisdiction
+          in: query
+          schema:
+            type: string
+        - name: body_of_law
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Documents listed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentListResponse'
+
+  /lexcore/documents/{id}:
+    get:
+      tags:
+        - lexcore
+      summary: Get document by ID
+      operationId: getDocumentById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Document retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+
+  /lexcore/chunks:
+    get:
+      tags:
+        - lexcore
+      summary: List chunks
+      operationId: listChunks
+      parameters:
+        - name: document_id
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Chunks listed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChunkListResponse'
+
+  /lexcore/monitor-rules:
+    post:
+      tags:
+        - lexcore
+      summary: Create monitor rule
+      operationId: createMonitorRule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MonitorRuleRequest'
+      responses:
+        '201':
+          description: Monitor rule created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonitorRuleResponse'
+
+  /lexcore/monitor-rules/{id}:
+    delete:
+      tags:
+        - lexcore
+      summary: Delete monitor rule
+      operationId: deleteMonitorRule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Monitor rule deleted
+
+  # ============================================================================
+  # LEXRADAR ENDPOINTS
+  # ============================================================================
+  /lexradar/inventions:
+    get:
+      tags:
+        - lexradar
+      summary: List inventions
+      operationId: listInventions
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [DETECTED, SCORING, DISCLOSED, FILED]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Inventions listed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventionListResponse'
+
+  /lexradar/inventions:
+    post:
+      tags:
+        - lexradar
+      summary: Create invention
+      operationId: createInvention
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventionRequest'
+      responses:
+        '201':
+          description: Invention created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventionResponse'
+
+  /lexradar/inventions/{id}/prior-art:
+    post:
+      tags:
+        - lexradar
+      summary: Search prior art
+      operationId: searchPriorArt
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PriorArtSearchRequest'
+      responses:
+        '200':
+          description: Prior art search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriorArtSearchResponse'
+
+  /lexradar/inventions/{id}/disclosure:
+    post:
+      tags:
+        - lexradar
+      summary: Generate disclosure
+      operationId: generateDisclosure
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisclosureRequest'
+      responses:
+        '201':
+          description: Disclosure generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisclosureResponse'
+
+  /lexradar/inventions/{id}/filing-bundle:
+    post:
+      tags:
+        - lexradar
+      summary: Package filing bundle
+      operationId: packageFilingBundle
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Filing bundle packaged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilingBundleResponse'
+
+  /lexradar/ledger/{id}:
+    get:
+      tags:
+        - lexradar
+      summary: Get ledger proof
+      operationId: getLedgerProof
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ledger proof retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LedgerProofResponse'
+
+  # ============================================================================
+  # AUTH ENDPOINTS
+  # ============================================================================
+  /auth/token:
+    post:
+      tags:
+        - auth
+      summary: Get JWT token
+      description: Exchange API key for JWT access token
+      operationId: getToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+      responses:
+        '200':
+          description: Token issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+
+  /auth/refresh:
+    post:
+      tags:
+        - auth
+      summary: Refresh JWT token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    # ============================================================================
+    # MCP TOOL SCHEMAS
+    # ============================================================================
+    CapabilitiesResponse:
+      type: object
+      properties:
+        jurisdictions:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              name:
+                type: string
+              coverage_percent:
+                type: number
+              doc_count:
+                type: integer
+        doc_types:
+          type: array
+          items:
+            type: string
+        tools:
+          type: array
+          items:
+            type: string
+        bam_tiers:
+          type: object
+          additionalProperties:
+            type: object
+
+    SearchLegalRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+        filters:
+          type: object
+          properties:
+            jurisdiction:
+              type: string
+            body_of_law:
+              type: string
+            doc_type:
+              type: string
+        top_k:
+          type: integer
+          default: 10
+          maximum: 100
+        config:
+          type: object
+          properties:
+            weight_vector:
+              type: number
+              default: 0.7
+            weight_fulltext:
+              type: number
+              default: 0.3
+        bam_compound:
+          type: string
+          description: BAM routing compound
+
+    SearchLegalResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              chunk_id:
+                type: string
+              document_id:
+                type: string
+              document_title:
+                type: string
+              chunk_text:
+                type: string
+              confidence:
+                type: number
+              freshness:
+                type: string
+              bam_signal:
+                type: string
+        total:
+          type: integer
+        latency_ms:
+          type: number
+        cache_hit:
+          type: boolean
+
+    ResearchTaskRequest:
+      type: object
+      required:
+        - question
+      properties:
+        question:
+          type: string
+        jurisdictions:
+          type: array
+          items:
+            type: string
+        depth:
+          type: integer
+          default: 3
+          maximum: 5
+        bam_compound:
+          type: string
+
+    ResearchTaskResponse:
+      type: object
+      properties:
+        report:
+          type: string
+        citation_chain:
+          type: array
+          items:
+            type: object
+        confidence:
+          type: number
+        gap_detected:
+          type: boolean
+        gap_description:
+          type: string
+
+    DocumentResponse:
+      type: object
+      properties:
+        document:
+          type: object
+          properties:
+            id:
+              type: string
+            title:
+              type: string
+            citation:
+              type: string
+            body_of_law:
+              type: string
+            jurisdiction:
+              type: string
+            full_text:
+              type: string
+            effective_date:
+              type: string
+            is_repealed:
+              type: boolean
+        chunks:
+          type: array
+          items:
+            type: object
+        citations:
+          type: array
+          items:
+            type: object
+
+    CitationGraphResponse:
+      type: object
+      properties:
+        nodes:
+          type: array
+          items:
+            type: object
+        edges:
+          type: array
+          items:
+            type: object
+        authority_chain:
+          type: array
+          items:
+            type: string
+        overruled_cases:
+          type: array
+          items:
+            type: string
+
+    LegalUpdatesResponse:
+      type: object
+      properties:
+        updates:
+          type: array
+          items:
+            type: object
+            properties:
+              document_id:
+                type: string
+              update_type:
+                type: string
+              change_summary:
+                type: string
+              detected_at:
+                type: string
+
+    JurisdictionSummaryResponse:
+      type: object
+      properties:
+        jurisdiction_code:
+          type: string
+        jurisdiction_name:
+          type: string
+        coverage_percent:
+          type: number
+        doc_count:
+          type: integer
+        recent_changes:
+          type: array
+          items:
+            type: object
+
+    # ============================================================================
+    # LEXCORE SCHEMAS
+    # ============================================================================
+    DocumentListResponse:
+      type: object
+      properties:
+        documents:
+          type: array
+          items:
+            type: object
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    ChunkListResponse:
+      type: object
+      properties:
+        chunks:
+          type: array
+          items:
+            type: object
+        total:
+          type: integer
+
+    MonitorRuleRequest:
+      type: object
+      required:
+        - jurisdiction
+        - body_of_law
+        - alert_type
+      properties:
+        jurisdiction:
+          type: string
+        body_of_law:
+          type: string
+        alert_type:
+          type: string
+        criteria:
+          type: object
+
+    MonitorRuleResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        tenant_id:
+          type: string
+        jurisdiction:
+          type: string
+        body_of_law:
+          type: string
+        alert_type:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+
+    # ============================================================================
+    # LEXRADAR SCHEMAS
+    # ============================================================================
+    InventionListResponse:
+      type: object
+      properties:
+        inventions:
+          type: array
+          items:
+            type: object
+        total:
+          type: integer
+
+    InventionRequest:
+      type: object
+      required:
+        - title
+        - description
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        inventors:
+          type: array
+          items:
+            type: object
+        source:
+          type: string
+        source_id:
+          type: string
+        bam_compound:
+          type: string
+
+    InventionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        tenant_id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+        composite_score:
+          type: number
+        created_at:
+          type: string
+
+    PriorArtSearchRequest:
+      type: object
+      required:
+        - sources
+      properties:
+        sources:
+          type: array
+          items:
+            type: string
+        max_results:
+          type: integer
+          default: 50
+
+    PriorArtSearchResponse:
+      type: object
+      properties:
+        prior_art:
+          type: array
+          items:
+            type: object
+        total_found:
+          type: integer
+
+    DisclosureRequest:
+      type: object
+      required:
+        - disclosure_type
+      properties:
+        disclosure_type:
+          type: string
+          enum: [PROVISIONAL, NON_PROVISIONAL, PCT]
+
+    DisclosureResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        invention_id:
+          type: string
+        disclosure_type:
+          type: string
+        sections:
+          type: object
+        claim_themes:
+          type: array
+          items:
+            type: string
+        grounding_score:
+          type: number
+        status:
+          type: string
+
+    FilingBundleResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        disclosure_draft_id:
+          type: string
+        documents:
+          type: array
+          items:
+            type: object
+        bundle_path:
+          type: string
+        bundle_format:
+          type: string
+        status:
+          type: string
+
+    LedgerProofResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        document_hash:
+          type: string
+        bundle_hash:
+          type: string
+        polygon_tx_hash:
+          type: string
+        polygon_block_number:
+          type: string
+        anchored_at:
+          type: string
+
+    # ============================================================================
+    # AUTH SCHEMAS
+    # ============================================================================
+    TokenRequest:
+      type: object
+      required:
+        - api_key
+      properties:
+        api_key:
+          type: string
+
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          default: Bearer
+        expires_in:
+          type: integer
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+
+    # ============================================================================
+    # ERROR SCHEMAS
+    # ============================================================================
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
+        details:
+          type: object

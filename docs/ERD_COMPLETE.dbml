@@ -1,0 +1,451 @@
+// LexCore + LexRadar Complete ERD
+// Schema Version: v0.1.0-foundation
+// Total Tables: 18 (10 LexCore + 8 LexRadar)
+// BAM Matrix Integrated: Genesis hash a96893482a3e79e75437ed19c21be1c9f618633c88cd5102f1e2d020035ade96
+
+// ============================================================================
+// TENANTS - Multi-tenancy foundation
+// ============================================================================
+Table tenants {
+  id uuid [pk, default: gen_random_uuid()]
+  name varchar(255) [not null]
+  tier varchar(50) [not null, note: 'SOLO|FIRM|ENTERPRISE']
+  created_at timestamptz [default: now()]
+  updated_at timestamptz [default: now()]
+  is_active boolean [default: true]
+  metadata jsonb
+}
+
+// ============================================================================
+// LEXCORE TABLES (10 tables)
+// ============================================================================
+
+// legal_documents - Primary document storage
+Table legal_documents {
+  id uuid [pk, default: gen_random_uuid()]
+  tenant_id uuid [ref: > tenants.id, not null]
+  title varchar(500) [not null]
+  title_fr varchar(500) [note: 'bilingual support']
+  citation varchar(255) [not null]
+  body_of_law varchar(50) [not null, note: 'STATUTE|REGULATION|CASE']
+  jurisdiction varchar(20) [not null, note: 'J_US_FED|J_CA_FED|etc. BAM T5']
+  doc_type varchar(50)
+  full_text text
+  effective_date timestamptz
+  retrieved_at timestamptz [default: now()]
+  data_quality_score float [note: '0-1']
+  source varchar(100) [not null, note: 'eCFR|CanLII|CourtListener|etc.']
+  is_repealed boolean [default: false]
+  overruled_by uuid [ref: > legal_documents.id, note: 'nullable']
+  bam_compound jsonb [note: 'BAM routing compound from T4+T5+T7']
+  created_at timestamptz [default: now()]
+  updated_at timestamptz [default: now()]
+  
+  indexes {
+    (tenant_id)
+    (jurisdiction)
+    (body_of_law)
+    (source)
+    (is_repealed)
+    (effective_date)
+    (bam_compound) [type: GIN]
+    (created_at)
+  }
+}
+
+// legal_chunks - Vector storage with pgvector HNSW
+Table legal_chunks {
+  id uuid [pk, default: gen_random_uuid()]
+  document_id uuid [ref: > legal_documents.id, not null]
+  tenant_id uuid [ref: > tenants.id, not null]
+  section_path varchar(500) [note: 'hierarchical path']
+  chunk_order integer
+  chunk_text text [not null]
+  embedding vector(1536) [note: 'pgvector HNSW index']
+  token_count integer
+  chunk_quality_score float [note: '0-1']
+  bam_signal jsonb [note: 'BAM routing compound']
+  created_at timestamptz [default: now()]
+  updated_at timestamptz [default: now()]
+  
+  indexes {
+    (document_id)
+    (tenant_id)
+    (chunk_order)
+    (embedding) [type: HNSW, note: 'cosine similarity']
+    (bam_signal) [type: GIN]
+    (created_at)
+  }
+}
+
+// legal_citations - Citation graph
+Table legal_citations {
+  id uuid [pk, default: gen_random_uuid()]
+  citing_chunk_id uuid [ref: > legal_chunks.id, not null]
+  cited_document_id uuid [ref: > legal_documents.id, not null]
+  citation_type varchar(50) [not null, note: 'DIRECT|IMPLIED|OVERRULING']
+  court varchar(255)
+  jurisdiction varchar(20)
+  decision_date timestamptz
+  citation_metadata jsonb
+  created_at timestamptz [default: now()]
+  
+  indexes {
+    (citing_chunk_id)
+    (cited_document_id)
+    (citation_type)
+    (jurisdiction)
+    (decision_date)
+  }
+}
+
+// agent_queries - Audit trail for all agent queries
+Table agent_queries {
+  id uuid [pk, default: gen_random_uuid()]
+  tenant_id uuid [ref: > tenants.id, not null]
+  agent_id varchar(50) [not null, note: 'AGT_ROUTER|AGT_SEARCH|etc. BAM T7']
+  bam_compound jsonb [not null, note: 'routing decision']
+  query_text text
+  query_normalized text
+  query_fingerprint varchar(64) [not null, note: 'SHA256']
+  result_count integer
+  cache_hit integer [note: 'boolean as int']
+  latency_ms float
+  query_params jsonb
+  created_at timestamptz [default: now()]
+  
+  indexes {
+    (tenant_id)
+    (agent_id)
+    (query_fingerprint)
+    (bam_compound) [type: GIN]
+    (created_at)
+    (cache_hit)
+  }
+}
+
+// query_cache - Redis-backed cache persistence
+Table query_cache {
+  id uuid [pk, default: gen_random_uuid()]
+  tenant_id uuid [ref: > tenants.id, not null]
+  query_fingerprint varchar(64) [unique, not null, note: 'SHA256']
+  query_normalized text [not null]
+  result_set jsonb [not null]
+  hit_count integer [default: 0]
+  last_accessed timestamptz [default: now()]
+  ttl_expires timestamptz
+  created_at timestamptz [default: now()]
+  
+  indexes {
+    (tenant_id)
+    (query_fingerprint)
+    (ttl_expires)
+    (last_accessed)
+  }
+}
+
+// monitor_rules - Tenant-configured monitoring
+Table monitor_rules {
+  id uuid [pk, default: gen_random_uuid()]
+  tenant_id uuid [ref: > tenants.id, not null]
+  jurisdiction varchar(20) [not null]
+  body_of_law varchar(50) [not null]
+  alert_type varchar(50) [not null, note: 'CHANGE|REPEAL|NEW']
+  criteria jsonb
+  is_active boolean [default: true]
+  last_checked timestamptz
+  created_at timestamptz [default: now()]
+  updated_at timestamptz [default: now()]
+  
+  indexes {
+    (tenant_id)
+    (jurisdiction)
+    (body_of_law)
+    (is_active)
+    (last_checked)
+  }
+}
+
+// legal_updates - Detected changes from monitoring
+Table legal_updates {
+  id uuid [pk, default: gen_random_uuid()]
+  document_id uuid [ref: > legal_documents.id, not null]
+  monitor_rule_id uuid [ref: > monitor_rules.id]
+  update_type varchar(50) [not null, note: 'CHANGE|REPEAL|NEW']
+  change_summary text
+  previous_version jsonb
+  current_version jsonb
+  detected_at timestamptz [default: now()]
+  alert_sent boolean [default: false]
+  created_at timestamptz [default: now()]
+  
+  indexes {
+    (document_id)
+    (monitor_rule_id)
+    (update_type)
+    (detected_at)
+    (alert_sent)
+  }
+}
+
+// eval_runs - Evaluation harness results
+Table eval_runs {
+  id uuid [pk, default: gen_random_uuid()]
+  run_at timestamptz [default: now()]
+  git_sha varchar(64)
+  precision_at_5 float
+  recall_at_10 float
+  ndcg_at_10 float
+  citation_accuracy float
+  total_test_cases integer
+  passed_cases integer
+  gate_passed boolean
+  notes text
+}
+
+// agent_manifest - Mirrors PROJECT_MANIFEST.md in DB
+Table agent_manifest {
+  id uuid [pk, default: gen_random_uuid()]
+  schema_version varchar(50) [not null]
+  lane_contracts jsonb
+  completed_outputs jsonb
+  open_blockers jsonb
+  last_updated timestamptz [default: now()]
+}
+
+// ============================================================================
+// LEXRADAR TABLES (8 tables)
+// ============================================================================
+
+// inventions - IP detection pipeline entry
+Table inventions {
+  id uuid [pk, default: gen_random_uuid()]
+  tenant_id uuid [ref: > tenants.id, not null]
+  title varchar(500) [not null]
+  description text
+  inventors jsonb [note: 'array of inventor info']
+  source varchar(50) [not null, note: 'GitHub|Jira|Notion|Manual']
+  source_id varchar(255) [note: 'external reference']
+  bam_compound jsonb [note: 'IP signal classification BAM T4+T7']
+  signal_type varchar(50) [note: '11 signal types']
+  novelty_score float [note: '0-1']
+  nonobviousness_score float [note: '0-1']
+  enablement_score float [note: '0-1']
+  written_description_score float [note: '0-1']
+  definiteness_score float [note: '0-1']
+  utility_score float [note: '0-1']
+  composite_score float [note: 'weighted average']
+  status varchar(50) [not null, note: 'DETECTED|SCORING|DISCLOSED|FILED']
+  detected_at timestamptz [default: now()]
+  disclosed_at timestamptz
+  filed_at timestamptz
+  metadata jsonb
+  created_at timestamptz [default: now()]
+  updated_at timestamptz [default: now()]
+  
+  indexes {
+    (tenant_id)
+    (source)
+    (signal_type)
+    (status)
+    (bam_compound) [type: GIN]
+    (detected_at)
+    (composite_score)
+  }
+}
+
+// invention_signals - Raw signals from sources
+Table invention_signals {
+  id uuid [pk, default: gen_random_uuid()]
+  invention_id uuid [ref: > inventions.id, not null]
+  signal_type varchar(50) [not null, note: 'CODE_COMMIT|ISSUE|DOCUMENT|etc.']
+  source varchar(100) [not null]
+  signal_data jsonb
+  confidence float [note: '0-1']
+  detected_at timestamptz [default: now()]
+  created_at timestamptz [default: now()]
+  
+  indexes {
+    (invention_id)
+    (signal_type)
+    (source)
+    (detected_at)
+    (confidence)
+  }
+}
+
+// prior_art - 7 prior art sources
+Table prior_art {
+  id uuid [pk, default: gen_random_uuid()]
+  invention_id uuid [ref: > inventions.id, not null]
+  source varchar(50) [not null, note: 'USPTO|WIPO|EPO|Lens|Google Patents|PatentScope|IP.com']
+  external_id varchar(255) [not null]
+  patent_number varchar(100)
+  title varchar(500)
+  inventors jsonb
+  abstract text
+  description text
+  filing_date timestamptz
+  publication_date timestamptz
+  claims jsonb
+  jurisdiction varchar(20)
+  embedding vector(1536) [note: 'pgvector HNSW']
+  relevance_score float [note: '0-1']
+  bam_compound jsonb [note: 'routing signal']
+  retrieved_at timestamptz [default: now()]
+  created_at timestamptz [default: now()]
+  
+  indexes {
+    (invention_id)
+    (source)
+    (external_id)
+    (patent_number)
+    (jurisdiction)
+    (embedding) [type: HNSW, note: 'cosine similarity']
+    (bam_compound) [type: GIN]
+    (relevance_score)
+    (retrieved_at)
+  }
+}
+
+// patent_scores - 6-dimension scoring
+Table patent_scores {
+  id uuid [pk, default: gen_random_uuid()]
+  invention_id uuid [ref: > inventions.id, not null]
+  prior_art_id uuid [ref: > prior_art.id]
+  novelty_score float [note: '0-1']
+  nonobviousness_score float [note: '0-1']
+  enablement_score float [note: '0-1']
+  written_description_score float [note: '0-1']
+  definiteness_score float [note: '0-1']
+  utility_score float [note: '0-1']
+  composite_score float [note: 'weighted average']
+  score_explanation text
+  scored_at timestamptz [default: now()]
+  created_at timestamptz [default: now()]
+  
+  indexes {
+    (invention_id)
+    (prior_art_id)
+    (composite_score)
+    (scored_at)
+  }
+}
+
+// disclosure_drafts - 10 LHP sections
+Table disclosure_drafts {
+  id uuid [pk, default: gen_random_uuid()]
+  invention_id uuid [ref: > inventions.id, not null]
+  tenant_id uuid [ref: > tenants.id, not null]
+  disclosure_type varchar(50) [not null, note: 'PROVISIONAL|NON_PROVISIONAL|PCT']
+  sections jsonb [not null, note: '10 LHP sections']
+  claim_themes jsonb
+  grounding_score float [not null, note: '≥0.85 required']
+  status varchar(50) [not null, note: 'DRAFT|REVIEW|APPROVED']
+  attorney_feedback jsonb
+  attorney_id uuid [note: 'nullable']
+  drafted_at timestamptz [default: now()]
+  reviewed_at timestamptz
+  approved_at timestamptz
+  created_at timestamptz [default: now()]
+  updated_at timestamptz [default: now()]
+  
+  indexes {
+    (invention_id)
+    (tenant_id)
+    (status)
+    (grounding_score)
+    (drafted_at)
+  }
+}
+
+// filing_bundles - 9 documents packaged
+Table filing_bundles {
+  id uuid [pk, default: gen_random_uuid()]
+  disclosure_draft_id uuid [ref: > disclosure_drafts.id, not null]
+  invention_id uuid [ref: > inventions.id, not null]
+  tenant_id uuid [ref: > tenants.id, not null]
+  documents jsonb [not null, note: '9 documents']
+  bundle_format varchar(50) [not null, note: 'PDF|ZIP']
+  bundle_path varchar(500) [not null, note: 'S3 location']
+  status varchar(50) [not null, note: 'PACKAGED|DOWNLOADED|SUBMITTED']
+  packaged_at timestamptz [default: now()]
+  downloaded_at timestamptz
+  submitted_at timestamptz
+  created_at timestamptz [default: now()]
+  
+  indexes {
+    (disclosure_draft_id)
+    (invention_id)
+    (tenant_id)
+    (status)
+    (packaged_at)
+  }
+}
+
+// proof_ledger - Immutable proof layer (HORDE-LEDGER)
+Table proof_ledger {
+  id uuid [pk, default: gen_random_uuid()]
+  tenant_id uuid [ref: > tenants.id, not null]
+  invention_id uuid [ref: > inventions.id, not null]
+  filing_bundle_id uuid [ref: > filing_bundles.id]
+  document_hash varchar(64) [not null, note: 'SHA-256']
+  bundle_hash varchar(64) [not null, note: 'SHA-256']
+  polygon_tx_hash varchar(66) [not null, note: 'on-chain anchor']
+  polygon_tx_timestamp timestamptz
+  polygon_block_number varchar(50)
+  encryption_key_id varchar(255) [not null, note: 'BYOK reference']
+  encryption_algorithm varchar(50) [not null, note: 'AES-256']
+  proof_metadata jsonb
+  anchored_at timestamptz [default: now()]
+  created_at timestamptz [default: now()]
+  
+  indexes {
+    (tenant_id)
+    (invention_id)
+    (filing_bundle_id)
+    (polygon_tx_hash) [unique]
+    (polygon_block_number)
+    (anchored_at)
+  }
+}
+
+// attorney_reviews - Attorney handoff tracking
+Table attorney_reviews {
+  id uuid [pk, default: gen_random_uuid()]
+  disclosure_draft_id uuid [ref: > disclosure_drafts.id, not null]
+  tenant_id uuid [ref: > tenants.id, not null]
+  attorney_name varchar(255) [not null]
+  attorney_email varchar(255) [not null]
+  review_status varchar(50) [not null, note: 'PENDING|IN_PROGRESS|APPROVED|REJECTED']
+  review_notes text
+  requested_changes jsonb
+  review_started_at timestamptz
+  review_completed_at timestamptz
+  created_at timestamptz [default: now()]
+  updated_at timestamptz [default: now()]
+  
+  indexes {
+    (disclosure_draft_id)
+    (tenant_id)
+    (review_status)
+    (attorney_email)
+    (review_started_at)
+  }
+}
+
+// ============================================================================
+// RLS POLICY STRUCTURE
+// ============================================================================
+// All tables with tenant_id require RLS:
+// - ENABLE ROW LEVEL SECURITY
+// - CREATE POLICY tenant_isolation FOR ALL USING (tenant_id = current_setting('app.tenant_id')::uuid)
+// - CREATE POLICY tenant_insert FOR INSERT WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid)
+// - audit tables (agent_queries, proof_ledger) require additional logging
+
+// ============================================================================
+// BAM MATRIX INTEGRATION
+// ============================================================================
+// BAM Genesis Hash: a96893482a3e79e75437ed19c21be1c9f618633c88cd5102f1e2d020035ade96
+// BAM compounds stored in jsonb columns with GIN indexes for fast lookup
+// Routing logic: BAM compound determines agent dispatch via AGT_ROUTER

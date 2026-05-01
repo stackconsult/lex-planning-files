@@ -1,0 +1,335 @@
+{
+  "schema_version": "v0.1.0-foundation",
+  "description": "Interface contracts for all service boundaries in LexCore + LexRadar. Every contract specifies request/response schemas, auth, errors, and idempotency.",
+  "last_updated": "2026-04-29",
+  "contracts": {
+    "mcp.search_legal": {
+      "type": "MCP",
+      "name": "search_legal",
+      "producer": "AGT_SEARCH",
+      "consumers": ["L4_api", "L5_frontend"],
+      "request": {
+        "query": "string (1-500 chars)",
+        "jurisdiction": "string | null (e.g., 'J_US_FED', 'J_CA_FED')",
+        "body_of_law": "string | null ('STATUTE', 'REGULATION', 'CASE')",
+        "top_k": "integer (1-100, default 10)",
+        "include_citations": "boolean (default true)"
+      },
+      "response": {
+        "results": "array of LegalDocumentSummary",
+        "total": "integer",
+        "latency_ms": "float",
+        "cache_hit": "boolean",
+        "citation_chains": "array (if include_citations=true)"
+      },
+      "auth": "JWT (tenant_id claim required)",
+      "errors": [
+        { "code": "INVALID_QUERY", "description": "Query empty or too long", "http_status": 400 },
+        { "code": "INVALID_JURISDICTION", "description": "Jurisdiction not supported", "http_status": 400 },
+        { "code": "TENANT_NOT_FOUND", "description": "JWT tenant_id invalid", "http_status": 401 },
+        { "code": "RATE_LIMIT_EXCEEDED", "description": "Too many requests", "http_status": 429 },
+        { "code": "SEARCH_TIMEOUT", "description": "Search exceeded 5s", "http_status": 504 }
+      ],
+      "idempotency": "keyed",
+      "idempotency_key": "SHA-256(query + jurisdiction + body_of_law + top_k)"
+    },
+    "mcp.research_task": {
+      "type": "MCP",
+      "name": "research_task",
+      "producer": "AGT_ANALYSIS",
+      "consumers": ["L4_api", "L5_frontend"],
+      "request": {
+        "question": "string (10-2000 chars)",
+        "jurisdictions": "array of strings",
+        "output_format": "string ('structured_report', 'memo', 'brief')",
+        "max_sources": "integer (5-50, default 20)"
+      },
+      "response": {
+        "report": "string (markdown)",
+        "citation_chain": "array of CitationNode",
+        "confidence": "float (0.0-1.0)",
+        "gap_detected": "boolean",
+        "gaps": "array of strings (if gap_detected=true)"
+      },
+      "auth": "JWT (tenant_id claim required)",
+      "errors": [
+        { "code": "INVALID_QUESTION", "description": "Question empty or too long", "http_status": 400 },
+        { "code": "RESEARCH_TIMEOUT", "description": "Research exceeded 60s", "http_status": 504 },
+        { "code": "LLM_UNAVAILABLE", "description": "Analysis engine unavailable", "http_status": 503 }
+      ],
+      "idempotency": "at_most_once",
+      "note": "Research tasks are not idempotent — each call may produce different results"
+    },
+    "mcp.get_document": {
+      "type": "MCP",
+      "name": "get_document",
+      "producer": "L4_api",
+      "consumers": ["L5_frontend"],
+      "request": {
+        "doc_id": "UUID | null",
+        "citation": "string | null (e.g., 'CFR 1.1.1')"
+      },
+      "response": {
+        "document": "LegalDocument",
+        "chunks": "array of LegalChunk",
+        "citations": "array of LegalCitation",
+        "metadata": "DocumentMetadata"
+      },
+      "auth": "JWT (tenant_id claim required)",
+      "errors": [
+        { "code": "MISSING_IDENTIFIER", "description": "Neither doc_id nor citation provided", "http_status": 400 },
+        { "code": "DOCUMENT_NOT_FOUND", "description": "No document matches ID or citation", "http_status": 404 },
+        { "code": "TENANT_ISOLATION", "description": "Document belongs to different tenant", "http_status": 403 }
+      ],
+      "idempotency": "keyed",
+      "idempotency_key": "doc_id or citation string"
+    },
+    "mcp.get_citations": {
+      "type": "MCP",
+      "name": "get_citations",
+      "producer": "AGT_CITE",
+      "consumers": ["L4_api", "L5_frontend"],
+      "request": {
+        "doc_id": "UUID",
+        "direction": "string ('forward', 'backward', 'both')",
+        "depth": "integer (1-5, default 3)"
+      },
+      "response": {
+        "nodes": "array of CitationNode",
+        "edges": "array of CitationEdge",
+        "authority_chain": "array of UUID (most authoritative path)",
+        "overruled_cases": "array of UUID (flagged as overruled)"
+      },
+      "auth": "JWT (tenant_id claim required)",
+      "errors": [
+        { "code": "INVALID_DEPTH", "description": "Depth must be 1-5", "http_status": 400 },
+        { "code": "DOCUMENT_NOT_FOUND", "description": "Document not found", "http_status": 404 },
+        { "code": "CYCLE_DETECTED", "description": "Circular citation detected (should not happen)", "http_status": 500 }
+      ],
+      "idempotency": "keyed",
+      "idempotency_key": "doc_id + direction + depth"
+    },
+    "mcp.check_updates": {
+      "type": "MCP",
+      "name": "check_updates",
+      "producer": "AGT_MONITOR",
+      "consumers": ["L4_api", "L5_frontend"],
+      "request": {
+        "jurisdiction": "string",
+        "since_date": "ISO 8601 date",
+        "alert_types": "array of strings ('CHANGE', 'REPEAL', 'NEW')"
+      },
+      "response": {
+        "updates": "array of LegalUpdate",
+        "total": "integer",
+        "new_count": "integer",
+        "change_count": "integer",
+        "repeal_count": "integer"
+      },
+      "auth": "JWT (tenant_id claim required)",
+      "errors": [
+        { "code": "INVALID_DATE", "description": "since_date in future or too old", "http_status": 400 },
+        { "code": "JURISDICTION_NOT_MONITORED", "description": "No monitor rule for jurisdiction", "http_status": 404 }
+      ],
+      "idempotency": "keyed",
+      "idempotency_key": "jurisdiction + since_date + alert_types"
+    },
+    "mcp.jurisdiction_summary": {
+      "type": "MCP",
+      "name": "jurisdiction_summary",
+      "producer": "L4_api",
+      "consumers": ["L5_frontend"],
+      "request": {
+        "jurisdiction_code": "string (e.g., 'J_US_FED')"
+      },
+      "response": {
+        "jurisdiction_code": "string",
+        "jurisdiction_name": "string",
+        "coverage_percent": "float (0.0-1.0)",
+        "doc_count": "integer",
+        "statute_count": "integer",
+        "regulation_count": "integer",
+        "case_count": "integer",
+        "last_ingest_date": "ISO 8601 datetime",
+        "recent_changes": "array of LegalUpdate (last 30 days)"
+      },
+      "auth": "JWT (tenant_id claim required)",
+      "errors": [
+        { "code": "JURISDICTION_NOT_FOUND", "description": "Unknown jurisdiction code", "http_status": 404 }
+      ],
+      "idempotency": "keyed",
+      "idempotency_key": "jurisdiction_code"
+    },
+    "mcp.get_capabilities": {
+      "type": "MCP",
+      "name": "get_capabilities",
+      "producer": "L4_api",
+      "consumers": ["L5_frontend", "external_integrations"],
+      "request": {},
+      "response": {
+        "jurisdictions": "object (code -> {name, coverage_percent, doc_count})",
+        "doc_types": "array of strings",
+        "tools": "array of strings (MCP tool names)",
+        "version": "string (API version)"
+      },
+      "auth": "none (public endpoint)",
+      "errors": [],
+      "idempotency": "keyed",
+      "idempotency_key": "static (always same response for version)"
+    },
+    "lexradar.scan_trigger": {
+      "type": "REST",
+      "name": "POST /v1/lexradar/scans/trigger",
+      "producer": "L4_api",
+      "consumers": ["L5_frontend", "webhooks"],
+      "request": {
+        "tenant_id": "UUID (from JWT claim)",
+        "source": "string ('GitHub', 'Jira', 'Notion')",
+        "source_id": "string (repo/project ID)",
+        "trigger": "string ('manual', 'webhook', 'scheduled')"
+      },
+      "response": {
+        "scan_job_id": "UUID",
+        "status": "string ('queued', 'running', 'completed')",
+        "estimated_duration_seconds": "integer"
+      },
+      "auth": "JWT (tenant_id + admin role required for manual)",
+      "errors": [
+        { "code": "SOURCE_NOT_CONNECTED", "description": "OAuth not configured for source", "http_status": 400 },
+        { "code": "SCAN_IN_PROGRESS", "description": "Scan already running for source", "http_status": 409 },
+        { "code": "WEBHOOK_INVALID", "description": "Webhook signature mismatch", "http_status": 401 }
+      ],
+      "idempotency": "at_most_once",
+      "note": "Each scan produces new results — not idempotent"
+    },
+    "lexradar.candidate_list": {
+      "type": "REST",
+      "name": "GET /v1/lexradar/inventions",
+      "producer": "L4_api",
+      "consumers": ["L5_frontend"],
+      "request": {
+        "status": "string | null ('DETECTED', 'SCORING', 'DISCLOSED', 'FILED')",
+        "limit": "integer (1-1000, default 50)",
+        "offset": "integer (default 0)"
+      },
+      "response": {
+        "inventions": "array of InventionSummary",
+        "total": "integer",
+        "limit": "integer",
+        "offset": "integer"
+      },
+      "auth": "JWT (tenant_id claim required)",
+      "errors": [
+        { "code": "INVALID_STATUS", "description": "Status not in allowed enum", "http_status": 400 }
+      ],
+      "idempotency": "keyed",
+      "idempotency_key": "tenant_id + status + limit + offset"
+    },
+    "lexradar.disclosure_generate": {
+      "type": "REST",
+      "name": "POST /v1/lexradar/inventions/{id}/disclosure",
+      "producer": "L4_api",
+      "consumers": ["L5_frontend"],
+      "request": {
+        "disclosure_type": "string ('PROVISIONAL', 'NON_PROVISIONAL', 'PCT')",
+        "claim_themes": "array of strings | null (auto-detected if null)"
+      },
+      "response": {
+        "disclosure_id": "UUID",
+        "invention_id": "UUID",
+        "status": "string ('DRAFT')",
+        "sections": "object (10 LHP sections)",
+        "claim_themes": "array of strings",
+        "grounding_score": "float (0.0-1.0)",
+        "generation_job_id": "UUID (for polling)"
+      },
+      "auth": "JWT (tenant_id + admin role required)",
+      "errors": [
+        { "code": "INVENTION_NOT_FOUND", "description": "Invention ID not found", "http_status": 404 },
+        { "code": "INSUFFICIENT_PRIOR_ART", "description": "Prior art search incomplete", "http_status": 400 },
+        { "code": "GROUNDING_FAILED", "description": "Grounding score below threshold", "http_status": 422 }
+      ],
+      "idempotency": "at_most_once",
+      "note": "Generation is not idempotent — produces new draft each time"
+    },
+    "lexradar.handoff_deliver": {
+      "type": "REST",
+      "name": "POST /v1/lexradar/handoffs",
+      "producer": "AGT_ATTYFLOW",
+      "consumers": ["email_service", "L5_frontend"],
+      "request": {
+        "disclosure_draft_id": "UUID",
+        "attorney_email": "string (email format)",
+        "attorney_name": "string",
+        "message": "string | null (optional cover note)"
+      },
+      "response": {
+        "handoff_id": "UUID",
+        "portal_url": "string (scoped JWT link)",
+        "expires_at": "ISO 8601 datetime (48h from now)",
+        "status": "string ('DELIVERED')"
+      },
+      "auth": "JWT (tenant_id + admin role required)",
+      "errors": [
+        { "code": "DISCLOSURE_NOT_FOUND", "description": "Disclosure draft not found", "http_status": 404 },
+        { "code": "DISCLOSURE_NOT_APPROVED", "description": "Disclosure not in APPROVED status", "http_status": 400 },
+        { "code": "ATTORNEY_INVALID_EMAIL", "description": "Invalid email format", "http_status": 400 }
+      ],
+      "idempotency": "at_most_once",
+      "note": "Each handoff creates a new scoped JWT and email"
+    },
+    "auth.token_exchange": {
+      "type": "REST",
+      "name": "POST /v1/auth/token",
+      "producer": "L4_api",
+      "consumers": ["L5_frontend", "external_integrations"],
+      "request": {
+        "api_key": "string (format: lex_{tenant_id}_{random_32})"
+      },
+      "response": {
+        "access_token": "string (JWT, 1h expiry)",
+        "refresh_token": "string (JWT, 7d expiry)",
+        "token_type": "string ('Bearer')",
+        "expires_in": "integer (seconds, 3600)"
+      },
+      "auth": "API key (this is the auth endpoint itself)",
+      "errors": [
+        { "code": "INVALID_API_KEY", "description": "API key format invalid or not found", "http_status": 401 },
+        { "code": "API_KEY_EXPIRED", "description": "API key has been revoked", "http_status": 401 },
+        { "code": "TENANT_INACTIVE", "description": "Tenant account suspended", "http_status": 403 }
+      ],
+      "idempotency": "at_most_once",
+      "note": "Each exchange creates a new token pair (refresh token rotation)"
+    },
+    "auth.refresh": {
+      "type": "REST",
+      "name": "POST /v1/auth/refresh",
+      "producer": "L4_api",
+      "consumers": ["L5_frontend"],
+      "request": {
+        "refresh_token": "string"
+      },
+      "response": {
+        "access_token": "string (JWT, 1h expiry)",
+        "refresh_token": "string (JWT, 7d expiry, new)",
+        "token_type": "string ('Bearer')",
+        "expires_in": "integer (seconds, 3600)"
+      },
+      "auth": "Refresh token",
+      "errors": [
+        { "code": "REFRESH_TOKEN_INVALID", "description": "Token invalid or expired", "http_status": 401 },
+        { "code": "REFRESH_TOKEN_REVOKED", "description": "Token blacklisted", "http_status": 401 },
+        { "code": "TENANT_INACTIVE", "description": "Tenant account suspended", "http_status": 403 }
+      ],
+      "idempotency": "at_most_once",
+      "note": "Refresh token rotation — old refresh token invalidated"
+    }
+  },
+  "versioning_policy": {
+    "current_version": "v1",
+    "version_in_path": true,
+    "breaking_changes": "Require new version (v2, v3)",
+    "deprecation_notice": "30 days before removal",
+    "compatibility_window": "2 versions supported simultaneously"
+  }
+}

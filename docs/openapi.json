@@ -1,0 +1,249 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "LexCore + LexRadar API",
+    "description": "Complete API specification for LexCore legal intelligence database and LexRadar IP detection system.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {"url": "https://api.lexcore.io/v1", "description": "Production server"},
+    {"url": "https://staging.lexcore.io/v1", "description": "Staging server"},
+    {"url": "http://localhost:8000/v1", "description": "Local development"}
+  ],
+  "tags": [
+    {"name": "mcp", "description": "Model Context Protocol tools"},
+    {"name": "lexcore", "description": "LexCore legal intelligence endpoints"},
+    {"name": "lexradar", "description": "LexRadar IP detection endpoints"},
+    {"name": "auth", "description": "Authentication endpoints"}
+  ],
+  "paths": {
+    "/mcp/get_capabilities": {
+      "get": {
+        "tags": ["mcp"],
+        "summary": "Get system capabilities",
+        "operationId": "getCapabilities",
+        "responses": {
+          "200": {
+            "description": "Capabilities retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/CapabilitiesResponse"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mcp/search_legal": {
+      "post": {
+        "tags": ["mcp"],
+        "summary": "Search legal documents",
+        "operationId": "searchLegal",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/SearchLegalRequest"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Search results returned",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/SearchLegalResponse"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mcp/research_task": {
+      "post": {
+        "tags": ["mcp"],
+        "summary": "Execute research task",
+        "operationId": "researchTask",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/ResearchTaskRequest"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Research report generated",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ResearchTaskResponse"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mcp/get_document": {
+      "get": {
+        "tags": ["mcp"],
+        "summary": "Get document by ID or citation",
+        "operationId": "getDocument",
+        "parameters": [
+          {"name": "doc_id", "in": "query", "schema": {"type": "string"}},
+          {"name": "citation", "in": "query", "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "200": {
+            "description": "Document retrieved",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/DocumentResponse"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mcp/get_citations": {
+      "get": {
+        "tags": ["mcp"],
+        "summary": "Get citation graph",
+        "operationId": "getCitations",
+        "parameters": [
+          {"name": "doc_id", "in": "query", "required": true, "schema": {"type": "string"}},
+          {"name": "direction", "in": "query", "schema": {"type": "string", "enum": ["forward", "backward", "both"], "default": "both"}},
+          {"name": "depth", "in": "query", "schema": {"type": "integer", "default": 3, "maximum": 5}}
+        ],
+        "responses": {
+          "200": {
+            "description": "Citation graph retrieved",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/CitationGraphResponse"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mcp/check_updates": {
+      "get": {
+        "tags": ["mcp"],
+        "summary": "Check for legal updates",
+        "operationId": "checkUpdates",
+        "parameters": [
+          {"name": "jurisdiction", "in": "query", "required": true, "schema": {"type": "string"}},
+          {"name": "since_date", "in": "query", "required": true, "schema": {"type": "string", "format": "date"}}
+        ],
+        "responses": {
+          "200": {
+            "description": "Updates retrieved",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/LegalUpdatesResponse"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mcp/jurisdiction_summary": {
+      "get": {
+        "tags": ["mcp"],
+        "summary": "Get jurisdiction summary",
+        "operationId": "jurisdictionSummary",
+        "parameters": [
+          {"name": "jurisdiction_code", "in": "query", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "200": {
+            "description": "Summary retrieved",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/JurisdictionSummaryResponse"}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CapabilitiesResponse": {
+        "type": "object",
+        "properties": {
+          "jurisdictions": {"type": "object"},
+          "doc_types": {"type": "array", "items": {"type": "string"}},
+          "tools": {"type": "array", "items": {"type": "string"}}
+        }
+      },
+      "SearchLegalRequest": {
+        "type": "object",
+        "required": ["query"],
+        "properties": {
+          "query": {"type": "string"},
+          "filters": {"type": "object"},
+          "top_k": {"type": "integer", "default": 10}
+        }
+      },
+      "SearchLegalResponse": {
+        "type": "object",
+        "properties": {
+          "results": {"type": "array"},
+          "total": {"type": "integer"},
+          "latency_ms": {"type": "number"},
+          "cache_hit": {"type": "boolean"}
+        }
+      },
+      "ResearchTaskRequest": {
+        "type": "object",
+        "required": ["question"],
+        "properties": {
+          "question": {"type": "string"},
+          "jurisdictions": {"type": "array", "items": {"type": "string"}},
+          "depth": {"type": "integer", "default": 3}
+        }
+      },
+      "ResearchTaskResponse": {
+        "type": "object",
+        "properties": {
+          "report": {"type": "string"},
+          "citation_chain": {"type": "array"},
+          "confidence": {"type": "number"}
+        }
+      },
+      "DocumentResponse": {
+        "type": "object",
+        "properties": {
+          "document": {"type": "object"},
+          "chunks": {"type": "array"},
+          "citations": {"type": "array"}
+        }
+      },
+      "CitationGraphResponse": {
+        "type": "object",
+        "properties": {
+          "nodes": {"type": "array"},
+          "edges": {"type": "array"},
+          "authority_chain": {"type": "array"}
+        }
+      },
+      "LegalUpdatesResponse": {
+        "type": "object",
+        "properties": {
+          "updates": {"type": "array"}
+        }
+      },
+      "JurisdictionSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "jurisdiction_code": {"type": "string"},
+          "coverage_percent": {"type": "number"},
+          "doc_count": {"type": "integer"}
+        }
+      }
+    }
+  }
+}

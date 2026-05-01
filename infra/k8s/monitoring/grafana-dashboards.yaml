@@ -1,0 +1,296 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  lexcore-api-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "LexCore API — Service Overview",
+        "tags": ["lexcore", "api"],
+        "timezone": "UTC",
+        "schemaVersion": 36,
+        "refresh": "30s",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Request Rate",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "rate(http_requests_total{job=\"lexcore-api\"}[5m])",
+                "legendFormat": "{{ method }} {{ endpoint }}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "Error Rate (5xx)",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "rate(http_requests_total{job=\"lexcore-api\",status=~\"5..\"}[5m])",
+                "legendFormat": "5xx errors"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "Latency (P50, P95, P99)",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket{job=\"lexcore-api\"}[5m]))",
+                "legendFormat": "P50"
+              },
+              {
+                "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"lexcore-api\"}[5m]))",
+                "legendFormat": "P95"
+              },
+              {
+                "expr": "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{job=\"lexcore-api\"}[5m]))",
+                "legendFormat": "P99"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8}
+          },
+          {
+            "id": 4,
+            "title": "Pod Status",
+            "type": "table",
+            "targets": [
+              {
+                "expr": "kube_pod_status_phase{namespace=\"lexcore-prod\",pod=~\"lexcore-api-.*\"}",
+                "format": "table",
+                "instant": true
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+          },
+          {
+            "id": 5,
+            "title": "Cache Hit Rate",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(rate(redis_keyspace_hits_total[5m])) / sum(rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m]))",
+                "legendFormat": "Cache Hit Rate"
+              }
+            ],
+            "gridPos": {"h": 4, "w": 6, "x": 12, "y": 16}
+          },
+          {
+            "id": 6,
+            "title": "Active Alerts",
+            "type": "table",
+            "targets": [
+              {
+                "expr": "ALERTS{alertstate=\"firing\"}",
+                "format": "table",
+                "instant": true
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20}
+          }
+        ]
+      }
+    }
+
+  lexcore-database-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "LexCore — Database & Cache",
+        "tags": ["lexcore", "database", "cache"],
+        "timezone": "UTC",
+        "schemaVersion": 36,
+        "refresh": "30s",
+        "panels": [
+          {
+            "id": 1,
+            "title": "PostgreSQL Connections",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "pg_stat_activity_count",
+                "legendFormat": "Connections — {{ state }}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "PostgreSQL Transaction Rate",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "rate(pg_stat_database_xact_commit[5m]) + rate(pg_stat_database_xact_rollback[5m])",
+                "legendFormat": "Transactions/sec"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "Redis Memory Usage",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "redis_memory_used_bytes / redis_memory_max_bytes",
+                "legendFormat": "Memory Usage %"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+          },
+          {
+            "id": 4,
+            "title": "Redis Commands/sec",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "rate(redis_commands_processed_total[5m])",
+                "legendFormat": "Commands/sec"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+          }
+        ]
+      }
+    }
+
+  lexcore-security-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "LexCore — Security & Compliance",
+        "tags": ["lexcore", "security", "compliance"],
+        "timezone": "UTC",
+        "schemaVersion": 36,
+        "refresh": "5m",
+        "panels": [
+          {
+            "id": 1,
+            "title": "BYOK Test Status",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "byok_test_passed{job=\"security-tests\"}",
+                "legendFormat": "BYOK Pass"
+              }
+            ],
+            "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            }
+          },
+          {
+            "id": 2,
+            "title": "RLS Audit Status",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "rls_audit_passed{job=\"security-tests\"}",
+                "legendFormat": "RLS Pass"
+              }
+            ],
+            "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            }
+          },
+          {
+            "id": 3,
+            "title": "CVE Count by Severity",
+            "type": "bargauge",
+            "targets": [
+              {
+                "expr": "sum by (severity) (security_cve_count)",
+                "legendFormat": "{{ severity }}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+          },
+          {
+            "id": 4,
+            "title": "Failed Login Attempts",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "rate(failed_login_attempts_total[5m])",
+                "legendFormat": "Failed Logins/sec"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+          }
+        ]
+      }
+    }
+
+  lexcore-slo-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "LexCore — SLOs & SLIs",
+        "tags": ["lexcore", "slo", "reliability"],
+        "timezone": "UTC",
+        "schemaVersion": 36,
+        "refresh": "30s",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Availability (30d)",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "1 - (sum_over_time(http_requests_total{job=\"lexcore-api\",status=~\"5..\"}[30d]) / sum_over_time(http_requests_total{job=\"lexcore-api\"}[30d]))",
+                "legendFormat": "Availability"
+              }
+            ],
+            "gridPos": {"h": 4, "w": 8, "x": 0, "y": 0},
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 0.999},
+                {"color": "green", "value": 0.9999}
+              ]
+            }
+          },
+          {
+            "id": 2,
+            "title": "P95 Latency (7d)",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"lexcore-api\"}[7d]))",
+                "legendFormat": "P95 Latency"
+              }
+            ],
+            "gridPos": {"h": 4, "w": 8, "x": 8, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "Error Budget (30d)",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "(1 - (sum_over_time(http_requests_total{job=\"lexcore-api\",status=~\"5..\"}[30d]) / sum_over_time(http_requests_total{job=\"lexcore-api\"}[30d]))) - 0.999",
+                "legendFormat": "Error Budget Remaining"
+              }
+            ],
+            "gridPos": {"h": 4, "w": 8, "x": 16, "y": 0}
+          }
+        ]
+      }
+    }

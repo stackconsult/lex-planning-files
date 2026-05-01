@@ -1,0 +1,92 @@
+{
+  "schema_version": "v0.1.0-foundation",
+  "description": "Consumer map for impact analysis. Lists all contract dependents.",
+  "last_updated": "2026-04-29",
+  "contracts": {
+    "mcp.search_legal": {
+      "producer": "AGT_SEARCH",
+      "consumers": ["L4_api","L5_frontend","query_cache_service"],
+      "impact_severity": "critical"
+    },
+    "mcp.research_task": {
+      "producer": "AGT_ANALYSIS",
+      "consumers": ["L4_api","L5_frontend"],
+      "impact_severity": "critical"
+    },
+    "mcp.get_document": {
+      "producer": "L4_api",
+      "consumers": ["L5_frontend","AGT_CITE"],
+      "impact_severity": "critical"
+    },
+    "mcp.get_citations": {
+      "producer": "AGT_CITE",
+      "consumers": ["L4_api","L5_frontend","AGT_ANALYSIS"],
+      "impact_severity": "critical"
+    },
+    "mcp.check_updates": {
+      "producer": "AGT_MONITOR",
+      "consumers": ["L4_api","L5_frontend"],
+      "impact_severity": "high"
+    },
+    "mcp.jurisdiction_summary": {
+      "producer": "L4_api",
+      "consumers": ["L5_frontend"],
+      "impact_severity": "medium"
+    },
+    "mcp.get_capabilities": {
+      "producer": "L4_api",
+      "consumers": ["L5_frontend","external_integrations"],
+      "impact_severity": "low"
+    },
+    "lexradar.scan_trigger": {
+      "producer": "L4_api",
+      "consumers": ["AGT_SCANNER","L5_frontend"],
+      "impact_severity": "critical"
+    },
+    "lexradar.candidate_list": {
+      "producer": "L4_api",
+      "consumers": ["L5_frontend"],
+      "impact_severity": "critical"
+    },
+    "lexradar.disclosure_generate": {
+      "producer": "L4_api",
+      "consumers": ["AGT_DISCLOSER","L5_frontend"],
+      "impact_severity": "critical"
+    },
+    "lexradar.handoff_deliver": {
+      "producer": "AGT_ATTYFLOW",
+      "consumers": ["email_service","L5_frontend"],
+      "impact_severity": "high"
+    },
+    "auth.token_exchange": {
+      "producer": "L4_api",
+      "consumers": ["L5_frontend","external_integrations"],
+      "impact_severity": "critical"
+    },
+    "auth.refresh": {
+      "producer": "L4_api",
+      "consumers": ["L5_frontend"],
+      "impact_severity": "critical"
+    },
+    "db.legal_documents": {
+      "producer": "HORDE-SCHEMA",
+      "consumers": ["AGT_INGEST","AGT_SEARCH","AGT_MONITOR","AGT_CITE","L4_api"],
+      "impact_severity": "critical"
+    },
+    "db.legal_chunks": {
+      "producer": "HORDE-SCHEMA",
+      "consumers": ["AGT_SEARCH","QdrantStore"],
+      "impact_severity": "critical"
+    },
+    "db.inventions": {
+      "producer": "HORDE-SCHEMA",
+      "consumers": ["AGT_PRIORART","AGT_SCORER","AGT_DISCLOSER","L4_api"],
+      "impact_severity": "critical"
+    }
+  },
+  "impact_procedure": {
+    "trigger": "Any change to a contract, schema, or event payload",
+    "output": "docs/compatibility/COMPAT_REPORT_{date}.json",
+    "required_fields": ["changed_artifact","consumers_affected","breaking","tests_updated","migration_required"]
+  }
+}
