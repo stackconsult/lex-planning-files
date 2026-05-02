@@ -11,6 +11,8 @@ from datetime import datetime
 
 from src.api.models import MonitorRuleCreate, MonitorRule
 from src.api.schemas import DocumentResponse
+from src.core.db_session import get_db_session
+from src.core.orm import LegalDocument, LegalChunk, MonitorRule
 
 
 class LexCoreService:
@@ -31,22 +33,52 @@ class LexCoreService:
         offset: int = 0,
     ) -> Dict[str, Any]:
         """List legal documents with optional filtering.
-        
+
         Queries the legal_documents table filtered by tenant,
         jurisdiction, and body of law.
         """
-        # TODO: Implement database query with RLS enforced
-        # SELECT * FROM legal_documents
-        # WHERE tenant_id = :tenant_id
-        #   AND (:jurisdiction IS NULL OR jurisdiction = :jurisdiction)
-        #   AND (:body_of_law IS NULL OR body_of_law = :body_of_law)
-        # LIMIT :limit OFFSET :offset
-        return {
-            "documents": [],
-            "total": 0,
-            "limit": limit,
-            "offset": offset,
-        }
+        tenant_uuid = UUID(tenant_id) if tenant_id else None
+
+        async with get_db_session(tenant_uuid) as session:
+            from sqlalchemy import select, func
+
+            # Build base query
+            query = select(LegalDocument)
+
+            # Apply filters
+            if jurisdiction:
+                query = query.where(LegalDocument.jurisdiction == jurisdiction)
+            if body_of_law:
+                query = query.where(LegalDocument.body_of_law == body_of_law)
+
+            # Get total count
+            count_query = select(func.count()).select_from(query.subquery())
+            total_result = await session.execute(count_query)
+            total = total_result.scalar() or 0
+
+            # Apply pagination
+            query = query.limit(limit).offset(offset)
+
+            # Execute query
+            result = await session.execute(query)
+            documents = result.scalars().all()
+
+            return {
+                "documents": [
+                    {
+                        "id": str(d.id),
+                        "title": d.title,
+                        "citation": d.citation,
+                        "jurisdiction": d.jurisdiction,
+                        "body_of_law": d.body_of_law,
+                        "effective_date": d.effective_date.isoformat() if d.effective_date else None,
+                    }
+                    for d in documents
+                ],
+                "total": total,
+                "limit": limit,
+                "offset": offset,
+            }
 
     async def get_document_by_id(
         self,
