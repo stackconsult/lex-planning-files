@@ -34,7 +34,6 @@ class MCPService:
     def __init__(self):
         """Initialize MCP service."""
         # In production, inject database session and other dependencies
-        self.capabilities_cache = {}
         self.query_cache = {}
 
     async def get_capabilities(self, tenant_id: str) -> CapabilitiesResponse:

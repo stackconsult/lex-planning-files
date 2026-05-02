@@ -27,7 +27,7 @@ class LexRadarService:
 
     def __init__(self):
         """Initialize LexRadar service."""
-        self.inventions_cache: Dict[str, List[Dict]] = {}
+        pass
 
     async def list_inventions(
         self,

@@ -21,8 +21,7 @@ class LexCoreService:
     def __init__(self):
         """Initialize LexCore service."""
         # In production, inject database session
-        self.documents_cache: Dict[str, Any] = {}
-        self.monitor_rules: Dict[str, List[Dict]] = {}
+        pass
 
     async def list_documents(
         self,
