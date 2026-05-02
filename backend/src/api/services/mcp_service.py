@@ -204,18 +204,60 @@ class MCPService:
         tenant_id: str = None,
     ) -> JurisdictionSummaryResponse:
         """Get jurisdiction summary.
-        
-        Aggregates statistics from legal_documents and legal_updates tables
+
+        Aggregates statistics from legal_documents and monitor_alerts tables
         for the specified jurisdiction.
         """
-        # TODO: Implement summary aggregation from database
-        # 1. Query legal_documents for jurisdiction stats
-        # 2. Query legal_updates for recent changes
-        # 3. Aggregate and return summary
-        return JurisdictionSummaryResponse(
-            jurisdiction_code=jurisdiction_code,
-            jurisdiction_name="",  # Load from jurisdiction config
-            coverage_percent=0.0,
-            doc_count=0,
-            recent_changes=[],
-        )
+        tenant_uuid = UUID(tenant_id) if tenant_id else None
+
+        async with get_db_session(tenant_uuid) as session:
+            from sqlalchemy import select, func
+            from src.core.orm import Jurisdiction, LegalDocument, MonitorAlert
+
+            # Query jurisdiction metadata
+            result = await session.execute(
+                select(Jurisdiction).where(Jurisdiction.code == jurisdiction_code)
+            )
+            jurisdiction = result.scalar_one_or_none()
+
+            if not jurisdiction:
+                return JurisdictionSummaryResponse(
+                    jurisdiction_code=jurisdiction_code,
+                    jurisdiction_name="Unknown",
+                    coverage_percent=0.0,
+                    doc_count=0,
+                    recent_changes=[],
+                )
+
+            # Query document count for jurisdiction
+            result = await session.execute(
+                select(func.count(LegalDocument.id)).where(
+                    LegalDocument.jurisdiction == jurisdiction_code
+                )
+            )
+            doc_count = result.scalar() or 0
+
+            # Query recent monitor alerts
+            result = await session.execute(
+                select(MonitorAlert).where(
+                    MonitorAlert.tenant_id == tenant_uuid
+                ).order_by(MonitorAlert.created_at.desc()).limit(5)
+            )
+            alerts = result.scalars().all()
+
+            recent_changes = [
+                {
+                    "alert_type": a.alert_type,
+                    "document_id": str(a.document_id),
+                    "created_at": a.created_at.isoformat(),
+                }
+                for a in alerts
+            ]
+
+            return JurisdictionSummaryResponse(
+                jurisdiction_code=jurisdiction.code,
+                jurisdiction_name=jurisdiction.name,
+                coverage_percent=jurisdiction.coverage_percent or 0.0,
+                doc_count=doc_count,
+                recent_changes=recent_changes,
+            )
