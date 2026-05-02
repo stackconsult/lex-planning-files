@@ -86,18 +86,65 @@ class LexCoreService:
         doc_id: UUID,
     ) -> DocumentResponse:
         """Get a specific legal document by ID.
-        
+
         Returns the complete document including all chunks and citation graph.
         """
-        # TODO: Implement database query with RLS enforced
-        # 1. SELECT * FROM legal_documents WHERE id = :doc_id AND tenant_id = :tenant_id
-        # 2. SELECT * FROM legal_chunks WHERE document_id = :doc_id AND tenant_id = :tenant_id
-        # 3. SELECT * FROM legal_citations WHERE document_id = :doc_id AND tenant_id = :tenant_id
-        return DocumentResponse(
-            document={"id": str(doc_id), "tenant_id": tenant_id},
-            chunks=[],
-            citations=[],
-        )
+        tenant_uuid = UUID(tenant_id) if tenant_id else None
+
+        async with get_db_session(tenant_uuid) as session:
+            from sqlalchemy import select
+
+            # Query document by ID
+            result = await session.execute(
+                select(LegalDocument).where(LegalDocument.id == doc_id)
+            )
+            document = result.scalar_one_or_none()
+
+            if not document:
+                return DocumentResponse(document={}, chunks=[], citations=[])
+
+            # Query chunks for this document
+            result = await session.execute(
+                select(LegalChunk)
+                .where(LegalChunk.document_id == document.id)
+                .order_by(LegalChunk.chunk_order)
+            )
+            chunks = result.scalars().all()
+
+            # Query citations for this document
+            result = await session.execute(
+                select(LegalCitation).where(LegalCitation.cited_document_id == document.id)
+            )
+            citations = result.scalars().all()
+
+            return DocumentResponse(
+                document={
+                    "id": str(document.id),
+                    "title": document.title,
+                    "citation": document.citation,
+                    "jurisdiction": document.jurisdiction,
+                    "body_of_law": document.body_of_law,
+                    "effective_date": document.effective_date.isoformat() if document.effective_date else None,
+                },
+                chunks=[
+                    {
+                        "id": str(c.id),
+                        "section_path": c.section_path,
+                        "chunk_order": c.chunk_order,
+                        "chunk_text": c.chunk_text,
+                    }
+                    for c in chunks
+                ],
+                citations=[
+                    {
+                        "id": str(c.id),
+                        "citation_type": c.citation_type,
+                        "court": c.court,
+                        "jurisdiction": c.jurisdiction,
+                    }
+                    for c in citations
+                ],
+            )
 
     async def list_chunks(
         self,
