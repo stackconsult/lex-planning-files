@@ -11,6 +11,7 @@ Implements business logic for all 7 MCP tools:
 """
 from typing import Optional, List, Dict, Any
 from datetime import date, datetime
+from uuid import UUID
 import asyncio
 
 from src.api.schemas import (
@@ -22,6 +23,8 @@ from src.api.schemas import (
     LegalUpdatesResponse,
     JurisdictionSummaryResponse,
 )
+from src.core.db_session import get_db_session
+from src.core.orm import Jurisdiction
 
 
 class MCPService:
@@ -34,30 +37,39 @@ class MCPService:
         self.query_cache = {}
 
     async def get_capabilities(self, tenant_id: str) -> CapabilitiesResponse:
-        """Get system capabilities from database/config.
-        
+        """Get system capabilities from database.
+
         Returns all supported jurisdictions, document types, tools, and BAM tiers.
         """
-        # TODO: Load from database tables (jurisdictions, doc_types, capabilities)
-        # For now, return static configuration
-        return CapabilitiesResponse(
-            jurisdictions={
-                "J_US_FED": {"name": "US Federal", "coverage_percent": 0.95, "doc_count": 150000},
-                "J_CA_FED": {"name": "Canada Federal", "coverage_percent": 0.88, "doc_count": 45000},
-                "J_EU": {"name": "European Union", "coverage_percent": 0.82, "doc_count": 78000},
-                "J_US_STATE": {"name": "US States", "coverage_percent": 0.65, "doc_count": 250000},
-            },
-            doc_types=["STATUTE", "REGULATION", "CASE", "ADMINISTRATIVE_DECISION"],
-            tools=[
-                "get_capabilities",
-                "search_legal",
-                "research_task",
-                "get_document",
-                "get_citations",
-                "check_updates",
-                "jurisdiction_summary",
-            ],
-        )
+        tenant_uuid = UUID(tenant_id) if tenant_id else None
+
+        async with get_db_session(tenant_uuid) as session:
+            # Query jurisdictions from database
+            from sqlalchemy import select
+            result = await session.execute(select(Jurisdiction))
+            jurisdictions_db = result.scalars().all()
+
+            jurisdictions = {}
+            for j in jurisdictions_db:
+                jurisdictions[j.code] = {
+                    "name": j.name,
+                    "coverage_percent": j.coverage_percent or 0.0,
+                    "doc_count": j.doc_count or 0,
+                }
+
+            return CapabilitiesResponse(
+                jurisdictions=jurisdictions,
+                doc_types=["STATUTE", "REGULATION", "CASE", "ADMINISTRATIVE_DECISION"],
+                tools=[
+                    "get_capabilities",
+                    "search_legal",
+                    "research_task",
+                    "get_document",
+                    "get_citations",
+                    "check_updates",
+                    "jurisdiction_summary",
+                ],
+            )
 
     async def search_legal(
         self,
