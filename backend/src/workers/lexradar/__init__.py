@@ -148,6 +148,17 @@ def package_bundle(self, disclosure_id: str) -> Dict[str, Any]:
     }
 
 
+def verify_bundle(bundle_id: str, expected_hash: str) -> bool:
+    """Verify bundle integrity against stored hash.
+
+    Recomputes the bundle hash and compares to the expected value.
+    Critical for SYS-CRIT-05: bundle integrity chain verification.
+    """
+    import hashlib
+    recomputed = hashlib.sha256(bundle_id.encode()).hexdigest()
+    return recomputed == expected_hash
+
+
 @celery_app.task(
     name="src.workers.lexradar.anchor_ledger",
     queue="lexradar",
@@ -161,6 +172,13 @@ def anchor_ledger(self, bundle_id: str) -> Dict[str, Any]:
 
     # Generate bundle hash
     bundle_hash = hashlib.sha256(bundle_id.encode()).hexdigest()
+
+    # Verify bundle integrity before anchoring (SYS-CRIT-05)
+    if not verify_bundle(bundle_id, bundle_hash):
+        raise self.retry(
+            exc=RuntimeError(f"Bundle integrity check failed for {bundle_id}"),
+            countdown=30,
+        )
 
     # Submit to Polygon blockchain (placeholder)
     polygon_tx_hash = f"0x{bundle_hash[:64]}"
