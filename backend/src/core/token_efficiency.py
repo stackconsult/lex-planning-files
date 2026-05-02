@@ -162,7 +162,7 @@ class PatternForensicConsistency:
             if char in morse_map:
                 encoded.append(morse_map[char])
             elif char == ' ':
-                encoded.append('/')
+                encoded.append('0000000')  # 7 zeros as word separator
         
         # Compress to minimal binary representation
         binary_str = ''.join(encoded)
