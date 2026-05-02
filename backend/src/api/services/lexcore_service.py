@@ -153,18 +153,46 @@ class LexCoreService:
         limit: int = 50,
     ) -> Dict[str, Any]:
         """List document chunks with optional document filter.
-        
+
         Queries the legal_chunks table filtered by tenant and document.
         """
-        # TODO: Implement database query with RLS enforced
-        # SELECT * FROM legal_chunks
-        # WHERE tenant_id = :tenant_id
-        #   AND (:document_id IS NULL OR document_id = :document_id)
-        # LIMIT :limit
-        return {
-            "chunks": [],
-            "total": 0,
-        }
+        tenant_uuid = UUID(tenant_id) if tenant_id else None
+
+        async with get_db_session(tenant_uuid) as session:
+            from sqlalchemy import select, func
+
+            # Build base query
+            query = select(LegalChunk)
+
+            # Apply document filter
+            if document_id:
+                query = query.where(LegalChunk.document_id == document_id)
+
+            # Get total count
+            count_query = select(func.count()).select_from(query.subquery())
+            total_result = await session.execute(count_query)
+            total = total_result.scalar() or 0
+
+            # Apply limit
+            query = query.limit(limit)
+
+            # Execute query
+            result = await session.execute(query)
+            chunks = result.scalars().all()
+
+            return {
+                "chunks": [
+                    {
+                        "id": str(c.id),
+                        "document_id": str(c.document_id),
+                        "section_path": c.section_path,
+                        "chunk_order": c.chunk_order,
+                        "chunk_text": c.chunk_text,
+                    }
+                    for c in chunks
+                ],
+                "total": total,
+            }
 
     async def create_monitor_rule(
         self,
