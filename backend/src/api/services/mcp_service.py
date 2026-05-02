@@ -24,7 +24,7 @@ from src.api.schemas import (
     JurisdictionSummaryResponse,
 )
 from src.core.db_session import get_db_session
-from src.core.orm import Jurisdiction
+from src.core.orm import Jurisdiction, LegalDocument, LegalChunk, LegalCitation
 
 
 class MCPService:
@@ -142,19 +142,72 @@ class MCPService:
         tenant_id: str = None,
     ) -> DocumentResponse:
         """Get document by ID or citation.
-        
+
         Returns the complete document including all chunks, citation graph,
         and metadata.
         """
-        # TODO: Implement document retrieval from database
-        # 1. Query legal_documents table by doc_id or citation
-        # 2. Query legal_chunks table for document chunks
-        # 3. Query legal_citations table for citation graph
-        return DocumentResponse(
-            document={"doc_id": doc_id or citation},
-            chunks=[],
-            citations=[],
-        )
+        tenant_uuid = UUID(tenant_id) if tenant_id else None
+
+        async with get_db_session(tenant_uuid) as session:
+            from sqlalchemy import select
+
+            # Query document by doc_id or citation
+            query = select(LegalDocument)
+            if doc_id:
+                query = query.where(LegalDocument.id == UUID(doc_id))
+            elif citation:
+                query = query.where(LegalDocument.citation == citation)
+            else:
+                return DocumentResponse(document={}, chunks=[], citations=[])
+
+            result = await session.execute(query)
+            document = result.scalar_one_or_none()
+
+            if not document:
+                return DocumentResponse(document={}, chunks=[], citations=[])
+
+            # Query chunks for this document
+            result = await session.execute(
+                select(LegalChunk)
+                .where(LegalChunk.document_id == document.id)
+                .order_by(LegalChunk.chunk_order)
+            )
+            chunks = result.scalars().all()
+
+            # Query citations for this document
+            result = await session.execute(
+                select(LegalCitation).where(LegalCitation.cited_document_id == document.id)
+            )
+            citations = result.scalars().all()
+
+            return DocumentResponse(
+                document={
+                    "id": str(document.id),
+                    "title": document.title,
+                    "citation": document.citation,
+                    "jurisdiction": document.jurisdiction,
+                    "body_of_law": document.body_of_law,
+                    "effective_date": document.effective_date.isoformat() if document.effective_date else None,
+                },
+                chunks=[
+                    {
+                        "id": str(c.id),
+                        "section_path": c.section_path,
+                        "chunk_order": c.chunk_order,
+                        "chunk_text": c.chunk_text,
+                    }
+                    for c in chunks
+                ],
+                citations=[
+                    {
+                        "id": str(c.id),
+                        "citation_type": c.citation_type,
+                        "court": c.court,
+                        "jurisdiction": c.jurisdiction,
+                    }
+                    for c in citations
+                ],
+            )
 
     async def get_citations(
         self,
