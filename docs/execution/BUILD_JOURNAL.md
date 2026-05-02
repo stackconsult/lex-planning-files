@@ -232,9 +232,54 @@ All 9 P2 tasks executed, validated, and committed. HORDE-AUDIT gate: PASS. Stagi
 
 ---
 
+## Phase 3 (P3) Progress Report — 2026-05-02
+
+### Commit Hash
+`db6e8ed` — feat: P3-04.1 LexCore list_documents with DB query
+
+### P3-01: Database Connection Pool Initialization ✅
+- Created `backend/src/core/database.py` — async PostgreSQL pool, Redis pool, Vault client
+- Lazy initialization pattern for container startup without external dependencies
+- Health check endpoints for all pools
+- Commit: `118b910`
+
+### P3-02: SQLAlchemy Async Session Factory with RLS Injection ✅
+- Created `backend/src/core/db_session.py` — async engine, session factory
+- Tenant context injection for Row Level Security (RLS)
+- Session context manager with automatic cleanup
+- Commit: `d155219`
+
+### P3-03.1: SQLAlchemy ORM Models ✅
+- Created `backend/src/core/orm.py` — 15 models for LexCore and LexRadar
+- Mapped to database schema (001_initial_schema.sql, 002_rls_policies.sql)
+- RLS tenant relationships enforced via Foreign Keys
+- Commit: `7f5359c`
+
+### P3-03.2-P3-03.6: MCP Service Stubs with Database Queries ✅
+- `get_capabilities` — Jurisdiction ORM query ✅ Commit: `d326d2d`
+- `jurisdiction_summary` — Jurisdiction metadata, LegalDocument count, MonitorAlert aggregation ✅ Commit: `8e4df58`
+- `get_document` — LegalDocument, LegalChunk, LegalCitation ORM queries ✅ Commit: `badaced`
+- `check_updates` — MonitorAlert join with LegalDocument ✅ Commit: `fe223b4`
+- `get_citations` — LegalCitation graph traversal, authority chain, overruled cases ✅ Commit: `c93bbd8`
+- Remaining: `search_legal` (needs pgvector), `research_task` (needs LLM)
+
+### P3-04.1: LexCore Service Stubs with Database Queries (In Progress)
+- `list_documents` — LegalDocument ORM with filters, pagination, RLS ✅ Commit: `db6e8ed`
+- Remaining: `get_document_by_id`, `list_chunks`, `create_monitor_rule`, `delete_monitor_rule`
+
+### Pending Tasks
+- P3-04.2-P3-04.5: Complete LexCore service stubs
+- P3-05: Replace LexRadar service stubs with database queries
+- P3-06: LLM client integration for research_task
+- P3-07: LLM client integration for generate_disclosure
+- P3-08: Production K8s deployment
+- P3-09: Load testing and performance optimization
+
+---
+
 ### Next Steps (Phase 3)
-1. Implement actual database connection pools (PostgreSQL, Redis, Vault)
-2. Replace service stubs with real database queries (SQLAlchemy async)
-3. Implement actual LLM integration for research_task and generate_disclosure
+1. Complete LexCore service stubs (get_document_by_id, list_chunks, create_monitor_rule, delete_monitor_rule)
+2. Replace LexRadar service stubs with database queries
+3. Implement LLM client integration for research_task and generate_disclosure
 4. Production deployment with real K8s cluster
 5. Load testing and performance optimization
