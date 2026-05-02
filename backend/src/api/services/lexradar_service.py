@@ -92,38 +92,42 @@ class LexRadarService:
         async with get_db_session(tenant_uuid) as session:
             from uuid import uuid4
 
-            # Create ORM instance
-            new_invention = Invention(
-                id=uuid4(),
-                tenant_id=tenant_uuid,
-                title=invention.title,
-                description=invention.description,
-                inventors=invention.inventors,
-                source=invention.source,
-                source_id=invention.source_id,
-                bam_compound=invention.bam_compound,
-                signal_type=invention.signal_type,
-                novelty_score=invention.novelty_score,
-                nonobviousness_score=invention.nonobviousness_score,
-                enablement_score=invention.enablement_score,
-                written_description_score=invention.written_description_score,
-                definiteness_score=invention.definiteness_score,
-                utility_score=invention.utility_score,
-                composite_score=invention.composite_score,
-                status=invention.status,
-                metadata=invention.metadata,
-                detected_at=datetime.utcnow(),
-                disclosed_at=None,
-                filed_at=None,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
-            )
+            try:
+                # Create ORM instance
+                new_invention = Invention(
+                    id=uuid4(),
+                    tenant_id=tenant_uuid,
+                    title=invention.title,
+                    description=invention.description,
+                    inventors=invention.inventors,
+                    source=invention.source,
+                    source_id=invention.source_id,
+                    bam_compound=invention.bam_compound,
+                    signal_type=invention.signal_type,
+                    novelty_score=invention.novelty_score,
+                    nonobviousness_score=invention.nonobviousness_score,
+                    enablement_score=invention.enablement_score,
+                    written_description_score=invention.written_description_score,
+                    definiteness_score=invention.definiteness_score,
+                    utility_score=invention.utility_score,
+                    composite_score=invention.composite_score,
+                    status=invention.status,
+                    metadata=invention.metadata,
+                    detected_at=datetime.utcnow(),
+                    disclosed_at=None,
+                    filed_at=None,
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow(),
+                )
 
-            session.add(new_invention)
-            await session.commit()
-            await session.refresh(new_invention)
+                session.add(new_invention)
+                await session.commit()
+                await session.refresh(new_invention)
 
-            return new_invention
+                return new_invention
+            except Exception:
+                await session.rollback()
+                raise
 
     async def search_prior_art(
         self,

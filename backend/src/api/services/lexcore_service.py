@@ -208,26 +208,29 @@ class LexCoreService:
             from sqlalchemy import select
             from uuid import uuid4
 
-            # Check if MonitorRuleCreate has the correct fields from the Pydantic model
-            # Create ORM instance
-            new_rule = MonitorRule(
-                id=uuid4(),
-                tenant_id=tenant_uuid,
-                jurisdiction=rule.jurisdiction,
-                body_of_law=rule.body_of_law,
-                alert_type=rule.alert_type,
-                criteria=rule.criteria,
-                is_active=rule.is_active,
-                last_checked=None,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
-            )
+            try:
+                # Create ORM instance
+                new_rule = MonitorRule(
+                    id=uuid4(),
+                    tenant_id=tenant_uuid,
+                    jurisdiction=rule.jurisdiction,
+                    body_of_law=rule.body_of_law,
+                    alert_type=rule.alert_type,
+                    criteria=rule.criteria,
+                    is_active=rule.is_active,
+                    last_checked=None,
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow(),
+                )
 
-            session.add(new_rule)
-            await session.commit()
-            await session.refresh(new_rule)
+                session.add(new_rule)
+                await session.commit()
+                await session.refresh(new_rule)
 
-            return new_rule
+                return new_rule
+            except Exception:
+                await session.rollback()
+                raise
 
     async def delete_monitor_rule(
         self,
