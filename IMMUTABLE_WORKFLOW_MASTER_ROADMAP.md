@@ -538,6 +538,37 @@ The user-provided architecture (LexCore + LexRadar) is a **superset** that inclu
 - **Status:** RESTRUCTURE COMPLETE → SCHEMA CONSOLIDATED → READY FOR P1 CONTINUATION
 - **Next Step:** Proceed with P1 schema-02 (RLS + Indexes + Query Optimization) or await user direction
 
+### 2026-05-01 — Security and Code Quality Fixes COMPLETE
+- **Action:** Full stack team code review and security audit of service layer
+- **Completed (P0 Critical):**
+  - SQL injection vulnerability fixed in db_session.py:73 — replaced f-string with parameterized query using text()
+  - .gitignore created to exclude .pyc and __pycache__ files
+- **Completed (P1 High):**
+  - Cache key collision fixed in mcp_service.py — replaced string concatenation with SHA-256 hash
+  - Race condition fixes in database.py — added asyncio.Lock to postgres/redis pools, threading.Lock to vault client
+  - Vault auth error handling improved — raises ConnectionError on auth failure instead of returning unauthenticated client
+- **Completed (P2 Medium):**
+  - Removed unused instance caches from service classes (lexcore_service, lexradar_service, mcp_service)
+  - Schema mismatch verified — filed_at column already has nullable=True (no change needed)
+  - Transaction rollback added to service create/update methods (create_monitor_rule, create_invention)
+- **Completed (P3 Low):**
+  - TODO stub implementations replaced with NotImplementedError (search_prior_art, generate_disclosure, package_filing_bundle, research_task)
+  - Removed unused asyncio import from mcp_service.py
+  - TTL-based cache invalidation added to mcp_service.py (5-minute TTL with timestamp check)
+- **Commits:**
+  - 7716031: fix(security): SQL injection vulnerability in db_session.py
+  - 004c8d5: chore(devops): add .gitignore to exclude Python cache files
+  - 6ec0d1b: fix(security): cache key collision in mcp_service.py - use SHA-256 hash
+  - 262c259: fix(concurrency): add async locks to pool initializers in database.py
+  - 2d165ba: fix(security): raise ConnectionError on Vault auth failure in database.py
+  - c5500cb: refactor: remove unused instance caches from service classes
+  - 4032e45: fix(db): add transaction rollback to service create methods
+  - 8bbd554: refactor: replace TODO stub implementations with NotImplementedError
+  - d7b15a9: refactor: remove unused asyncio import from mcp_service.py
+  - 859c8fe: feat: add TTL-based cache invalidation to mcp_service.py
+- **Status:** ALL FIXES COMMITTED → CODE QUALITY IMPROVED → SECURITY HARDENED
+- **Next Step:** Continue with P1 schema-02 (RLS + Indexes + Query Optimization) or await user direction
+
 ### 2026-05-01 — P1 schema-01 Alembic Migrations + Schema Definitions COMPLETE
 - **Action:** Executed HORDE-SCHEMA schema-01 per ROLE_INSTRUCTIONS.md READ → BUILD → TEST → GATE
 - **Completed:**
