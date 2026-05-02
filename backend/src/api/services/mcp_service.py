@@ -24,7 +24,7 @@ from src.api.schemas import (
     JurisdictionSummaryResponse,
 )
 from src.core.db_session import get_db_session
-from src.core.orm import Jurisdiction, LegalDocument, LegalChunk, LegalCitation
+from src.core.orm import Jurisdiction, LegalDocument, LegalChunk, LegalCitation, MonitorAlert
 
 
 class MCPService:
@@ -240,16 +240,36 @@ class MCPService:
         tenant_id: str = None,
     ) -> LegalUpdatesResponse:
         """Check for legal updates since specified date.
-        
-        Queries the legal_updates table for changes detected by the
+
+        Queries monitor_alerts table for changes detected by the
         monitor system since the given date.
         """
-        # TODO: Implement update checking from legal_updates table
-        # 1. Query legal_updates table filtered by jurisdiction and date
-        # 2. Return list of updates
-        return LegalUpdatesResponse(
-            updates=[],
-        )
+        tenant_uuid = UUID(tenant_id) if tenant_id else None
+
+        async with get_db_session(tenant_uuid) as session:
+            from sqlalchemy import select
+
+            # Query monitor alerts for jurisdiction since date
+            result = await session.execute(
+                select(MonitorAlert)
+                .join(LegalDocument, MonitorAlert.document_id == LegalDocument.id)
+                .where(LegalDocument.jurisdiction == jurisdiction)
+                .where(MonitorAlert.created_at >= since_date)
+                .order_by(MonitorAlert.created_at.desc())
+            )
+            alerts = result.scalars().all()
+
+            updates = [
+                {
+                    "alert_id": str(a.id),
+                    "alert_type": a.alert_type,
+                    "document_id": str(a.document_id),
+                    "created_at": a.created_at.isoformat(),
+                }
+                for a in alerts
+            ]
+
+            return LegalUpdatesResponse(updates=updates)
 
     async def jurisdiction_summary(
         self,
