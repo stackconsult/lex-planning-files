@@ -19,7 +19,7 @@ from src.api.schemas import (
     LedgerProofResponse,
 )
 from src.core.db_session import get_db_session
-from src.core.orm import Invention
+from src.core.orm import Invention, ProofLedger
 
 
 class LexRadarService:
@@ -199,17 +199,35 @@ class LexRadarService:
         bundle_id: UUID,
     ) -> LedgerProofResponse:
         """Get ledger proof for a filing bundle.
-        
-        Retrieves the blockchain anchoring proof for a filing bundle.
+
+        Retrieves the blockchain anchoring proof from blockchain_anchors table.
         """
-        # TODO: Implement ledger proof retrieval
-        # 1. Query ledger_records table for bundle_id
-        # 2. Return blockchain transaction details
-        return LedgerProofResponse(
-            id=bundle_id,
-            document_hash="",
-            bundle_hash="",
-            polygon_tx_hash="",
-            polygon_block_number="",
-            anchored_at=datetime.utcnow(),
-        )
+        tenant_uuid = UUID(tenant_id) if tenant_id else None
+
+        async with get_db_session(tenant_uuid) as session:
+            from sqlalchemy import select
+
+            # Query blockchain_anchors for this bundle_id
+            result = await session.execute(
+                select(ProofLedger).where(ProofLedger.filing_bundle_id == bundle_id)
+            )
+            proof = result.scalar_one_or_none()
+
+            if not proof:
+                return LedgerProofResponse(
+                    id=bundle_id,
+                    document_hash="",
+                    bundle_hash="",
+                    polygon_tx_hash="",
+                    polygon_block_number="",
+                    anchored_at=datetime.utcnow(),
+                )
+
+            return LedgerProofResponse(
+                id=proof.id,
+                document_hash=proof.document_hash,
+                bundle_hash=proof.bundle_hash,
+                polygon_tx_hash=proof.polygon_tx_hash,
+                polygon_block_number=proof.polygon_block_number or "",
+                anchored_at=proof.anchored_at,
+            )
