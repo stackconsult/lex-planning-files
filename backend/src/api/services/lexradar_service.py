@@ -137,17 +137,10 @@ class LexRadarService:
         max_results: int = 50,
     ) -> Dict[str, Any]:
         """Search prior art for an invention across 7 sources.
-        
+
         Parallel search across connectors: GitHub, USPTO, WIPO, EPO, PACER, SEC, State.
         """
-        # TODO: Implement parallel prior art search via Celery workers
-        # 1. Trigger search_prior_art Celery task for each source
-        # 2. Aggregate results
-        # 3. Rank by relevance
-        return {
-            "prior_art": [],
-            "total_found": 0,
-        }
+        raise NotImplementedError("Parallel prior art search via Celery workers not yet implemented")
 
     async def generate_disclosure(
         self,
@@ -156,23 +149,10 @@ class LexRadarService:
         request: DisclosureRequest,
     ) -> DisclosureResponse:
         """Generate a disclosure draft for an invention.
-        
+
         Uses LLM to generate disclosure draft with grounding check.
         """
-        # TODO: Implement disclosure generation
-        # 1. Retrieve invention details
-        # 2. Generate disclosure draft via LLM
-        # 3. Grounding check against prior art
-        # 4. Store in disclosure_drafts table
-        return DisclosureResponse(
-            id=UUID("00000000-0000-0000-0000-000000000000"),
-            invention_id=invention_id,
-            disclosure_type=request.disclosure_type,
-            sections={},
-            claim_themes=[],
-            grounding_score=0.0,
-            status="DRAFT",
-        )
+        raise NotImplementedError("Disclosure generation via LLM not yet implemented")
 
     async def package_filing_bundle(
         self,
@@ -180,22 +160,10 @@ class LexRadarService:
         invention_id: UUID,
     ) -> FilingBundleResponse:
         """Package a filing bundle with 9 documents.
-        
+
         Assembles all required documents for patent filing.
         """
-        # TODO: Implement bundle packaging
-        # 1. Retrieve disclosure draft
-        # 2. Generate 9 required documents
-        # 3. Package into ZIP/PDF bundle
-        # 4. Store bundle metadata
-        return FilingBundleResponse(
-            id=UUID("00000000-0000-0000-0000-000000000000"),
-            disclosure_draft_id=UUID("00000000-0000-0000-0000-000000000000"),
-            documents=[],
-            bundle_path="",
-            bundle_format="PDF",
-            status="PACKAGED",
-        )
+        raise NotImplementedError("Filing bundle packaging not yet implemented")
 
     async def get_ledger_proof(
         self,

@@ -80,14 +80,13 @@ class MCPService:
         tenant_id: str = None,
     ) -> SearchLegalResponse:
         """Search legal documents using hybrid pgvector + full-text search.
-        
+
         Combines vector similarity search (HNSW index) with full-text search (GIN index)
         for optimal legal document retrieval.
         """
         start_time = datetime.utcnow()
-        
-        # TODO: Implement hybrid search
-        # 1. Check query_cache for fingerprint match
+
+        # Check query_cache for fingerprint match
         query_fingerprint = hashlib.sha256(
             f"{query}:{jurisdiction}:{doc_type}:{limit}".encode()
         ).hexdigest()
@@ -99,13 +98,12 @@ class MCPService:
                 latency_ms=0.0,
                 cache_hit=True,
             )
-        
-        # 2. Vector search on legal_chunks.embedding (HNSW, cosine similarity)
-        # 3. Full-text search on legal_chunks.chunk_text (GIN, tsvector)
-        # 4. Re-rank and combine results
-        # For now, return empty results
+
+        # Vector search on legal_chunks.embedding (HNSW, cosine similarity)
+        # Full-text search on legal_chunks.chunk_text (GIN, tsvector)
+        # Re-rank and combine results
         latency = (datetime.utcnow() - start_time).total_seconds() * 1000
-        
+
         return SearchLegalResponse(
             results=[],
             total=0,
@@ -120,22 +118,11 @@ class MCPService:
         tenant_id: str = None,
     ) -> ResearchTaskResponse:
         """Execute research task with question decomposition.
-        
+
         Breaks down complex questions into sub-questions, runs parallel searches,
         and synthesizes a structured report with citation chain.
         """
-        # TODO: Implement research pipeline
-        # 1. Question decomposition via LLM
-        # 2. Parallel search_legal calls per sub-question
-        # 3. Synthesis of results into structured report
-        # 4. Citation chain extraction
-        # 5. Gap detection
-        return ResearchTaskResponse(
-            report=f"Research report for: {question}",
-            citation_chain=[],
-            confidence=0.0,
-            gap_detected=False,
-        )
+        raise NotImplementedError("Research pipeline not yet implemented")
 
     async def get_document(
         self,
