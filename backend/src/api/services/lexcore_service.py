@@ -236,10 +236,26 @@ class LexCoreService:
         rule_id: UUID,
     ) -> None:
         """Delete a monitor rule.
-        
+
         Removes the monitor rule from the database. RLS ensures
         only the tenant's own rules can be deleted.
         """
-        # TODO: Implement database delete with RLS
-        # DELETE FROM monitor_rules WHERE id = :rule_id AND tenant_id = :tenant_id
-        pass
+        tenant_uuid = UUID(tenant_id) if tenant_id else None
+
+        async with get_db_session(tenant_uuid) as session:
+            from sqlalchemy import select, delete
+
+            # Query the rule first to ensure it exists
+            result = await session.execute(
+                select(MonitorRule).where(MonitorRule.id == rule_id)
+            )
+            rule = result.scalar_one_or_none()
+
+            if not rule:
+                return
+
+            # Delete the rule (RLS will enforce tenant isolation)
+            await session.execute(
+                delete(MonitorRule).where(MonitorRule.id == rule_id)
+            )
+            await session.commit()
