@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import declarative_base
+from sqlalchemy import text
 import structlog
 
 from src.config.settings import settings
@@ -70,7 +71,7 @@ async def get_db_session(tenant_id: Optional[UUID] = None) -> AsyncGenerator[Asy
     async with get_async_session_factory()() as session:
         # Inject tenant_id into PostgreSQL session context for RLS
         if tenant_id is not None:
-            await session.execute(f"SET LOCAL app.tenant_id = '{tenant_id}'")
+            await session.execute(text("SET LOCAL app.tenant_id = :tenant_id"), {"tenant_id": str(tenant_id)})
             logger.debug("tenant_context_injected", tenant_id=str(tenant_id))
         try:
             yield session
