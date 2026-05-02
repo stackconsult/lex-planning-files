@@ -34,6 +34,7 @@ class MCPService:
         """Initialize MCP service."""
         # In production, inject database session and other dependencies
         self.query_cache = {}
+        self.cache_ttl_seconds = 300  # 5 minutes TTL
 
     async def get_capabilities(self, tenant_id: str) -> CapabilitiesResponse:
         """Get system capabilities from database.
@@ -85,18 +86,24 @@ class MCPService:
         """
         start_time = datetime.utcnow()
 
-        # Check query_cache for fingerprint match
+        # Check query_cache for fingerprint match with TTL
         query_fingerprint = hashlib.sha256(
             f"{query}:{jurisdiction}:{doc_type}:{limit}".encode()
         ).hexdigest()
         if query_fingerprint in self.query_cache:
             cached = self.query_cache[query_fingerprint]
-            return SearchLegalResponse(
-                results=cached["results"],
-                total=cached["total"],
-                latency_ms=0.0,
-                cache_hit=True,
-            )
+            # Check if cache entry has expired
+            cache_age = (datetime.utcnow() - cached["timestamp"]).total_seconds()
+            if cache_age < self.cache_ttl_seconds:
+                return SearchLegalResponse(
+                    results=cached["results"],
+                    total=cached["total"],
+                    latency_ms=0.0,
+                    cache_hit=True,
+                )
+            else:
+                # Remove expired entry
+                del self.query_cache[query_fingerprint]
 
         # Vector search on legal_chunks.embedding (HNSW, cosine similarity)
         # Full-text search on legal_chunks.chunk_text (GIN, tsvector)
