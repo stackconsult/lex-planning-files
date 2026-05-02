@@ -13,6 +13,7 @@ from typing import Optional, List, Dict, Any
 from datetime import date, datetime
 from uuid import UUID
 import hashlib
+import json
 
 from src.api.schemas import (
     CapabilitiesResponse,
@@ -87,8 +88,9 @@ class MCPService:
         start_time = datetime.utcnow()
 
         # Check query_cache for fingerprint match with TTL
+        cache_key_data = {"query": query, "jurisdiction": jurisdiction, "doc_type": doc_type, "limit": limit}
         query_fingerprint = hashlib.sha256(
-            f"{query}:{jurisdiction}:{doc_type}:{limit}".encode()
+            json.dumps(cache_key_data, sort_keys=True).encode()
         ).hexdigest()
         if query_fingerprint in self.query_cache:
             cached = self.query_cache[query_fingerprint]
