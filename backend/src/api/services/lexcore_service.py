@@ -200,28 +200,35 @@ class LexCoreService:
         rule: MonitorRuleCreate,
     ) -> MonitorRule:
         """Create a new monitor rule for legislative changes.
-        
+
         Inserts a new monitor_rule record for the tenant.
         """
-        # TODO: Implement database insert
-        # INSERT INTO monitor_rules (tenant_id, ...) VALUES (:tenant_id, ...)
-        # RETURNING id, created_at, updated_at
-        return MonitorRule(
-            id=UUID("00000000-0000-0000-0000-000000000000"),
-            tenant_id=tenant_id,
-            name=rule.name,
-            description=rule.description,
-            jurisdictions=rule.jurisdictions,
-            body_of_law=rule.body_of_law,
-            keywords=rule.keywords,
-            threshold=rule.threshold,
-            is_active=rule.is_active,
-            notify_emails=rule.notify_emails,
-            webhooks=rule.webhooks,
-            last_checked=None,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-        )
+        tenant_uuid = UUID(tenant_id) if tenant_id else None
+
+        async with get_db_session(tenant_uuid) as session:
+            from sqlalchemy import select
+            from uuid import uuid4
+
+            # Check if MonitorRuleCreate has the correct fields from the Pydantic model
+            # Create ORM instance
+            new_rule = MonitorRule(
+                id=uuid4(),
+                tenant_id=tenant_uuid,
+                jurisdiction=rule.jurisdiction,
+                body_of_law=rule.body_of_law,
+                alert_type=rule.alert_type,
+                criteria=rule.criteria,
+                is_active=rule.is_active,
+                last_checked=None,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
+
+            session.add(new_rule)
+            await session.commit()
+            await session.refresh(new_rule)
+
+            return new_rule
 
     async def delete_monitor_rule(
         self,
