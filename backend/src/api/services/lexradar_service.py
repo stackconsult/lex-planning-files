@@ -84,32 +84,46 @@ class LexRadarService:
         invention: InventionCreate,
     ) -> Invention:
         """Create a new invention record.
-        
+
         Inserts a new invention into the inventions table.
         """
-        # TODO: Implement database insert
-        # INSERT INTO inventions (tenant_id, title, description, technical_field, ...)
-        # VALUES (:tenant_id, :title, :description, :technical_field, ...)
-        # RETURNING id, detected_at, created_at, updated_at
-        return Invention(
-            id=UUID("00000000-0000-0000-0000-000000000000"),
-            tenant_id=tenant_id,
-            title=invention.title,
-            description=invention.description,
-            technical_field=invention.technical_field,
-            key_claims=invention.key_claims,
-            prior_art_refs=invention.prior_art_refs or [],
-            novelty_score=invention.novelty_score,
-            inventiveness_score=invention.inventiveness_score,
-            detection_confidence=invention.detection_confidence,
-            source_documents=invention.source_documents or [],
-            status="DETECTED",
-            disclosed_at=None,
-            filed_at=None,
-            detected_at=datetime.utcnow(),
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-        )
+        tenant_uuid = UUID(tenant_id) if tenant_id else None
+
+        async with get_db_session(tenant_uuid) as session:
+            from uuid import uuid4
+
+            # Create ORM instance
+            new_invention = Invention(
+                id=uuid4(),
+                tenant_id=tenant_uuid,
+                title=invention.title,
+                description=invention.description,
+                inventors=invention.inventors,
+                source=invention.source,
+                source_id=invention.source_id,
+                bam_compound=invention.bam_compound,
+                signal_type=invention.signal_type,
+                novelty_score=invention.novelty_score,
+                nonobviousness_score=invention.nonobviousness_score,
+                enablement_score=invention.enablement_score,
+                written_description_score=invention.written_description_score,
+                definiteness_score=invention.definiteness_score,
+                utility_score=invention.utility_score,
+                composite_score=invention.composite_score,
+                status=invention.status,
+                metadata=invention.metadata,
+                detected_at=datetime.utcnow(),
+                disclosed_at=None,
+                filed_at=None,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
+
+            session.add(new_invention)
+            await session.commit()
+            await session.refresh(new_invention)
+
+            return new_invention
 
     async def search_prior_art(
         self,
