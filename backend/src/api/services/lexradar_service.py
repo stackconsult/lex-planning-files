@@ -18,6 +18,8 @@ from src.api.schemas import (
     FilingBundleResponse,
     LedgerProofResponse,
 )
+from src.core.db_session import get_db_session
+from src.core.orm import Invention
 
 
 class LexRadarService:
@@ -34,18 +36,47 @@ class LexRadarService:
         limit: int = 50,
     ) -> Dict[str, Any]:
         """List inventions with optional status filter.
-        
+
         Queries the inventions table filtered by tenant and status.
         """
-        # TODO: Implement database query with RLS enforced
-        # SELECT * FROM inventions
-        # WHERE tenant_id = :tenant_id
-        #   AND (:status IS NULL OR status = :status)
-        # LIMIT :limit
-        return {
-            "inventions": [],
-            "total": 0,
-        }
+        tenant_uuid = UUID(tenant_id) if tenant_id else None
+
+        async with get_db_session(tenant_uuid) as session:
+            from sqlalchemy import select, func
+
+            # Build base query
+            query = select(Invention)
+
+            # Apply status filter
+            if status:
+                query = query.where(Invention.status == status)
+
+            # Get total count
+            count_query = select(func.count()).select_from(query.subquery())
+            total_result = await session.execute(count_query)
+            total = total_result.scalar() or 0
+
+            # Apply limit
+            query = query.limit(limit)
+
+            # Execute query
+            result = await session.execute(query)
+            inventions = result.scalars().all()
+
+            return {
+                "inventions": [
+                    {
+                        "id": str(i.id),
+                        "title": i.title,
+                        "description": i.description,
+                        "status": i.status,
+                        "composite_score": i.composite_score,
+                        "detected_at": i.detected_at.isoformat() if i.detected_at else None,
+                    }
+                    for i in inventions
+                ],
+                "total": total,
+            }
 
     async def create_invention(
         self,
