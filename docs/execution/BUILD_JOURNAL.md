@@ -263,23 +263,57 @@ All 9 P2 tasks executed, validated, and committed. HORDE-AUDIT gate: PASS. Stagi
 - `get_citations` — LegalCitation graph traversal, authority chain, overruled cases ✅ Commit: `c93bbd8`
 - Remaining: `search_legal` (needs pgvector), `research_task` (needs LLM)
 
-### P3-04.1: LexCore Service Stubs with Database Queries (In Progress)
+### P3-04: LexCore Service Stubs with Database Queries ✅
 - `list_documents` — LegalDocument ORM with filters, pagination, RLS ✅ Commit: `db6e8ed`
-- Remaining: `get_document_by_id`, `list_chunks`, `create_monitor_rule`, `delete_monitor_rule`
+- `get_document_by_id` — LegalDocument, LegalChunk, LegalCitation ORM ✅ Commit: `3eb644c`
+- `list_chunks` — LegalChunk ORM with filter, pagination, RLS ✅ Commit: `8cd9e54`
+- `create_monitor_rule` — MonitorRule ORM insert ✅ Commit: `58b3621`
+- `delete_monitor_rule` — MonitorRule ORM delete with RLS ✅ Commit: `d4ffedc`
 
-### Pending Tasks
-- P3-04.2-P3-04.5: Complete LexCore service stubs
-- P3-05: Replace LexRadar service stubs with database queries
-- P3-06: LLM client integration for research_task
-- P3-07: LLM client integration for generate_disclosure
-- P3-08: Production K8s deployment
-- P3-09: Load testing and performance optimization
+### P3-05: LexRadar Service Stubs with Database Queries (In Progress)
+- `list_inventions` — Invention ORM with status filter, pagination, RLS ✅ Commit: `4410987`
+- `create_invention` — Invention ORM insert with RLS ✅ Commit: `07cd702`
+- `get_ledger_proof` — ProofLedger ORM query with RLS ✅ Commit: `f2b1b7b`
+- Remaining: `search_prior_art` (needs Celery workers), `generate_disclosure` (needs LLM - P3-07), `package_filing_bundle` (complex)
+
+### P3-06/P3-07: LLM Integration (Pending)
+- `research_task` LLM client integration
+- `generate_disclosure` LLM client integration
+
+### P3-08: Production K8s Deployment (Pending)
+- Team 13 deployment manifests
+
+### P3-09: Load Testing and Performance Optimization (Pending)
+- Team 07 performance benchmarks
+
+---
+
+### New Architectural Requirements (Added 2026-05-01)
+#### P3-10: Hyper Neural Dynamic Matching Engine
+- **Objective**: Implement semantic query-to-document matching with neural embeddings
+- **Components**: pgvector HNSW index, embedding normalization, cosine similarity thresholding
+- **Integration**: MCP `search_legal` tool, LexCore document retrieval
+- **Team**: Team 07 Backend + Team 11 LLM
+
+#### P3-11: Trace Binary Morse Code Patterned Assembly Library
+- **Objective**: Compressed trace representation for audit logging and blockchain anchoring
+- **Components**: Binary serialization format, Morse encoding for human-readable trace hashes, assembly-level optimization
+- **Integration**: HORDE-AUDIT logging, blockchain proof ledger, compliance reporting
+- **Team**: Team 16 Security + Team 07 Backend
+
+#### P3-12: Instant Compounding Distribution on Query Terms
+- **Objective**: Real-time query term weight distribution across distributed search shards
+- **Components**: Redis-backed term frequency cache, weighted term vector computation, shard-level aggregation
+- **Integration**: Search legal API, jurisdiction summary aggregation, monitor alert scoring
+- **Team**: Team 07 Backend + Team 13 Deploy
 
 ---
 
 ### Next Steps (Phase 3)
-1. Complete LexCore service stubs (get_document_by_id, list_chunks, create_monitor_rule, delete_monitor_rule)
-2. Replace LexRadar service stubs with database queries
-3. Implement LLM client integration for research_task and generate_disclosure
-4. Production deployment with real K8s cluster
-5. Load testing and performance optimization
+1. P3-10: Implement hyper neural dynamic matching (pgvector + embedding pipeline)
+2. P3-11: Build trace binary Morse code patterned assembly library
+3. P3-12: Implement instant compounding distribution on query terms
+4. Complete P3-05 remaining LexRadar methods (search_prior_art, generate_disclosure, package_filing_bundle)
+5. P3-06/P3-07: LLM client integration for research_task and generate_disclosure
+6. P3-08: Production K8s deployment
+7. P3-09: Load testing and performance optimization
