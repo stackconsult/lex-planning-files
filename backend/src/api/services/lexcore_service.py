@@ -12,7 +12,7 @@ from datetime import datetime
 from src.api.models import MonitorRuleCreate, MonitorRule
 from src.api.schemas import DocumentResponse
 from src.core.db_session import get_db_session
-from src.core.orm import LegalDocument, LegalChunk, MonitorRule
+from src.core.orm import LegalDocument, LegalChunk, MonitorRule, LegalCitation
 
 
 class LexCoreService:
