@@ -13,6 +13,7 @@ from typing import Optional, List, Dict, Any
 from datetime import date, datetime
 from uuid import UUID
 import asyncio
+import hashlib
 
 from src.api.schemas import (
     CapabilitiesResponse,
@@ -88,7 +89,9 @@ class MCPService:
         
         # TODO: Implement hybrid search
         # 1. Check query_cache for fingerprint match
-        query_fingerprint = f"{query}:{jurisdiction}:{doc_type}:{limit}"
+        query_fingerprint = hashlib.sha256(
+            f"{query}:{jurisdiction}:{doc_type}:{limit}".encode()
+        ).hexdigest()
         if query_fingerprint in self.query_cache:
             cached = self.query_cache[query_fingerprint]
             return SearchLegalResponse(
