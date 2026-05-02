@@ -74,7 +74,8 @@ def get_vault_client() -> hvac.Client:
             if _vault_client.is_authenticated():
                 logger.info("vault_client_ready", authenticated=True)
             else:
-                logger.warning("vault_client_auth_failed")
+                logger.error("vault_client_auth_failed")
+                raise ConnectionError("Vault authentication failed")
     return _vault_client
 
 
