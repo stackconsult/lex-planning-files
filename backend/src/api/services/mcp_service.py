@@ -217,21 +217,54 @@ class MCPService:
         tenant_id: str = None,
     ) -> CitationGraphResponse:
         """Get citation graph up to specified depth.
-        
+
         Traverses the legal_citations table to build a citation graph
         from the specified document.
         """
-        # TODO: Implement citation graph traversal
-        # 1. BFS/DFS traversal of legal_citations table
-        # 2. Build node and edge lists
-        # 3. Extract authority chain
-        # 4. Detect overruled cases
-        return CitationGraphResponse(
-            nodes=[],
-            edges=[],
-            authority_chain=[],
-            overruled_cases=[],
-        )
+        tenant_uuid = UUID(tenant_id) if tenant_id else None
+
+        async with get_db_session(tenant_uuid) as session:
+            from sqlalchemy import select
+
+            # Query direct citations for this document
+            result = await session.execute(
+                select(LegalCitation).where(LegalCitation.cited_document_id == UUID(doc_id))
+            )
+            citations = result.scalars().all()
+
+            # Build nodes (documents)
+            nodes = [{"id": str(UUID(doc_id)), "type": "source"}]
+            for c in citations:
+                nodes.append({"id": str(c.citing_chunk_id), "type": "citing"})
+
+            # Build edges
+            edges = [
+                {
+                    "from": str(c.citing_chunk_id),
+                    "to": str(c.cited_document_id),
+                    "type": c.citation_type,
+                }
+                for c in citations
+            ]
+
+            # Authority chain (simplified: direct citations)
+            authority_chain = [str(c.cited_document_id) for c in citations]
+
+            # Overruled cases (simplified: check overruled_by field)
+            result = await session.execute(
+                select(LegalDocument).where(LegalDocument.id == UUID(doc_id))
+            )
+            doc = result.scalar_one_or_none()
+            overruled_cases = []
+            if doc and doc.overruled_by:
+                overruled_cases.append(str(doc.overruled_by))
+
+            return CitationGraphResponse(
+                nodes=nodes,
+                edges=edges,
+                authority_chain=authority_chain,
+                overruled_cases=overruled_cases,
+            )
 
     async def check_updates(
         self,
