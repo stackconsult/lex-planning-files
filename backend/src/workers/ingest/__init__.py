@@ -19,13 +19,38 @@ logger = logging.getLogger(__name__)
 )
 def fetch_and_parse(self, connector_config: Dict[str, Any], query: str) -> Dict[str, Any]:
     """Fetch and parse documents from connector."""
-    # TODO: Implement fetch and parse pipeline
-    # 1. Initialize connector from config
-    # 2. Fetch documents matching query
-    # 3. Parse documents with Docling
-    # 4. Emit DocumentIngestedEvent
-    logger.info(f"Fetching and parsing documents for query: {query}")
-    return {"status": "completed", "documents_processed": 0}
+    import asyncio
+    from src.connectors import ConnectorConfig
+    from src.core.parser import DocumentParser
+
+    config = ConnectorConfig(**connector_config)
+    connector_class = _get_connector_class(config.source_name)
+    if not connector_class:
+        raise ValueError(f"Unknown connector source: {config.source_name}")
+
+    connector = connector_class(config)
+    parser = DocumentParser()
+    documents_processed = 0
+
+    async def _run():
+        nonlocal documents_processed
+        try:
+            async for raw_doc in connector.fetch_documents(query=query):
+                parsed = await connector.parse_document(raw_doc)
+                metadata = connector.get_document_metadata(parsed)
+                documents_processed += 1
+            return {"status": "completed", "documents_processed": documents_processed}
+        except Exception as e:
+            logger.error(f"Fetch and parse failed: {e}")
+            raise self.retry(exc=e, countdown=60)
+        finally:
+            await connector.close()
+
+    try:
+        return asyncio.run(_run())
+    except Exception as e:
+        logger.error(f"Fetch and parse failed: {e}")
+        raise
 
 
 @celery_app.task(
@@ -36,10 +61,46 @@ def fetch_and_parse(self, connector_config: Dict[str, Any], query: str) -> Dict[
 )
 def chunk_and_embed(self, document: Dict[str, Any]) -> Dict[str, Any]:
     """Chunk document and generate embeddings."""
-    # TODO: Implement chunk and embed pipeline
-    # 1. Chunk document with DocumentChunker
-    # 2. Generate embeddings with TextEmbedder
-    # 3. Store chunks in legal_chunks table
-    # 4. Update legal_documents with embedding status
-    logger.info(f"Chunking and embedding document: {document.get('id')}")
-    return {"status": "completed", "chunks_created": 0}
+    import asyncio
+    from src.core.chunker import DocumentChunker
+    from src.core.embedder import TextEmbedder
+
+    chunker = DocumentChunker(chunk_size=512, chunk_overlap=50)
+    embedder = TextEmbedder()
+
+    async def _run():
+        try:
+            chunks = await chunker.chunk_document(document, strategy="hierarchical")
+            embeddings = await embedder.embed_batch(chunks)
+            return {"status": "completed", "chunks_created": len(chunks)}
+        except Exception as e:
+            logger.error(f"Chunk and embed failed: {e}")
+            raise self.retry(exc=e, countdown=60)
+
+    try:
+        return asyncio.run(_run())
+    except Exception as e:
+        logger.error(f"Chunk and embed failed: {e}")
+        raise
+
+
+def _get_connector_class(source_name: str):
+    """Get connector class by source name."""
+    from src.connectors.github import GitHubConnector
+    from src.connectors.uspto import USPTOConnector
+    from src.connectors.wipo import WIPOConnector
+    from src.connectors.epo import EPOConnector
+    from src.connectors.pacer import PACERConnector
+    from src.connectors.sec import SECConnector
+    from src.connectors.state import StateConnector
+
+    mapping = {
+        "GitHub": GitHubConnector,
+        "USPTO": USPTOConnector,
+        "WIPO": WIPOConnector,
+        "EPO": EPOConnector,
+        "PACER": PACERConnector,
+        "SEC": SECConnector,
+        "State": StateConnector,
+    }
+    return mapping.get(source_name)

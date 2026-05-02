@@ -13,8 +13,11 @@ from src.api.schemas import (
     LedgerProofResponse,
 )
 from src.api.middleware.jwt_auth import get_current_tenant
+from src.api.services.lexradar_service import LexRadarService
 
 router = APIRouter()
+
+lexradar_service = LexRadarService()
 
 
 @router.get("/inventions")
@@ -24,8 +27,11 @@ async def list_inventions(
     tenant: dict = Depends(get_current_tenant),
 ):
     """List inventions with optional status filter."""
-    # TODO: Implement invention listing
-    return {"inventions": [], "total": 0}
+    return await lexradar_service.list_inventions(
+        tenant_id=tenant["tenant_id"],
+        status=status,
+        limit=limit,
+    )
 
 
 @router.post("/inventions", response_model=Invention, status_code=status.HTTP_201_CREATED)
@@ -34,16 +40,9 @@ async def create_invention(
     tenant: dict = Depends(get_current_tenant),
 ) -> Invention:
     """Create a new invention record."""
-    # TODO: Implement invention creation
-    return Invention(
-        id=UUID("00000000-0000-0000-0000-000000000000"),
-        tenant_id=tenant["id"],
-        **invention.model_dump(),
-        detected_at=__import__("datetime").datetime.utcnow(),
-        disclosed_at=None,
-        filed_at=None,
-        created_at=__import__("datetime").datetime.utcnow(),
-        updated_at=__import__("datetime").datetime.utcnow(),
+    return await lexradar_service.create_invention(
+        tenant_id=tenant["tenant_id"],
+        invention=invention,
     )
 
 
@@ -55,8 +54,12 @@ async def search_prior_art(
     tenant: dict = Depends(get_current_tenant),
 ):
     """Search prior art for an invention across 7 sources."""
-    # TODO: Implement parallel prior art search
-    return {"prior_art": [], "total_found": 0}
+    return await lexradar_service.search_prior_art(
+        tenant_id=tenant["tenant_id"],
+        invention_id=id,
+        sources=sources,
+        max_results=max_results,
+    )
 
 
 @router.post("/inventions/{id}/disclosure", response_model=DisclosureResponse, status_code=status.HTTP_201_CREATED)
@@ -66,15 +69,10 @@ async def generate_disclosure(
     tenant: dict = Depends(get_current_tenant),
 ) -> DisclosureResponse:
     """Generate a disclosure draft for an invention."""
-    # TODO: Implement disclosure generation with grounding check
-    return DisclosureResponse(
-        id=UUID("00000000-0000-0000-0000-000000000000"),
+    return await lexradar_service.generate_disclosure(
+        tenant_id=tenant["tenant_id"],
         invention_id=id,
-        disclosure_type=request.disclosure_type,
-        sections={},
-        claim_themes=[],
-        grounding_score=0.0,
-        status="DRAFT",
+        request=request,
     )
 
 
@@ -84,14 +82,9 @@ async def package_filing_bundle(
     tenant: dict = Depends(get_current_tenant),
 ) -> FilingBundleResponse:
     """Package a filing bundle with 9 documents."""
-    # TODO: Implement bundle packaging
-    return FilingBundleResponse(
-        id=UUID("00000000-0000-0000-0000-000000000000"),
-        disclosure_draft_id=UUID("00000000-0000-0000-0000-000000000000"),
-        documents=[],
-        bundle_path="",
-        bundle_format="PDF",
-        status="PACKAGED",
+    return await lexradar_service.package_filing_bundle(
+        tenant_id=tenant["tenant_id"],
+        invention_id=id,
     )
 
 
@@ -101,12 +94,7 @@ async def get_ledger_proof(
     tenant: dict = Depends(get_current_tenant),
 ) -> LedgerProofResponse:
     """Get ledger proof for a filing bundle."""
-    # TODO: Implement ledger proof retrieval
-    return LedgerProofResponse(
-        id=id,
-        document_hash="",
-        bundle_hash="",
-        polygon_tx_hash="",
-        polygon_block_number="",
-        anchored_at=__import__("datetime").datetime.utcnow(),
+    return await lexradar_service.get_ledger_proof(
+        tenant_id=tenant["tenant_id"],
+        bundle_id=id,
     )

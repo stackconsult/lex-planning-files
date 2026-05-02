@@ -28,8 +28,11 @@ from src.api.schemas import (
     JurisdictionSummaryResponse,
 )
 from src.api.middleware.jwt_auth import get_current_tenant
+from src.api.services.mcp_service import MCPService
 
 router = APIRouter()
+
+mcp_service = MCPService()
 
 
 @router.get("/get_capabilities", response_model=CapabilitiesResponse)
@@ -40,24 +43,7 @@ async def get_capabilities(
     
     Returns all supported jurisdictions, document types, tools, and BAM tiers.
     """
-    # TODO: Implement actual capabilities retrieval from database/config
-    return CapabilitiesResponse(
-        jurisdictions={
-            "J_US_FED": {"name": "US Federal", "coverage_percent": 0.95, "doc_count": 150000},
-            "J_CA_FED": {"name": "Canada Federal", "coverage_percent": 0.88, "doc_count": 45000},
-            "J_EU": {"name": "European Union", "coverage_percent": 0.82, "doc_count": 78000},
-        },
-        doc_types=["STATUTE", "REGULATION", "CASE", "ADMINISTRATIVE_DECISION"],
-        tools=[
-            "get_capabilities",
-            "search_legal",
-            "research_task",
-            "get_document",
-            "get_citations",
-            "check_updates",
-            "jurisdiction_summary",
-        ],
-    )
+    return await mcp_service.get_capabilities(tenant_id=tenant["tenant_id"])
 
 
 @router.post("/search_legal", response_model=SearchLegalResponse)
@@ -70,17 +56,12 @@ async def search_legal(
     Combines vector similarity search (HNSW index) with full-text search (GIN index)
     for optimal legal document retrieval.
     """
-    # TODO: Implement hybrid search with pgvector and full-text
-    # 1. Decompose query using BAM compound
-    # 2. Vector search on legal_chunks.embedding (HNSW, cosine similarity)
-    # 3. Full-text search on legal_chunks.chunk_text (GIN, tsvector)
-    # 4. Re-rank and combine results
-    # 5. Check query_cache for fingerprint match
-    return SearchLegalResponse(
-        results=[],
-        total=0,
-        latency_ms=0.0,
-        cache_hit=False,
+    return await mcp_service.search_legal(
+        query=request.query,
+        jurisdiction=request.jurisdiction,
+        doc_type=request.doc_type,
+        limit=request.limit,
+        tenant_id=tenant["tenant_id"],
     )
 
 
@@ -94,17 +75,10 @@ async def research_task(
     Breaks down complex questions into sub-questions, runs parallel searches,
     and synthesizes a structured report with citation chain.
     """
-    # TODO: Implement research pipeline
-    # 1. Question decomposition via LLM
-    # 2. Parallel search_legal calls per sub-question
-    # 3. Synthesis of results into structured report
-    # 4. Citation chain extraction
-    # 5. Gap detection
-    return ResearchTaskResponse(
-        report="",
-        citation_chain=[],
-        confidence=0.0,
-        gap_detected=False,
+    return await mcp_service.research_task(
+        question=request.question,
+        jurisdiction=request.jurisdiction,
+        tenant_id=tenant["tenant_id"],
     )
 
 
@@ -125,11 +99,10 @@ async def get_document(
             detail="Either doc_id or citation must be provided",
         )
     
-    # TODO: Implement document retrieval from database
-    return DocumentResponse(
-        document={},
-        chunks=[],
-        citations=[],
+    return await mcp_service.get_document(
+        doc_id=doc_id,
+        citation=citation,
+        tenant_id=tenant["tenant_id"],
     )
 
 
@@ -146,16 +119,11 @@ async def get_citations(
     from the specified document, following forward (cited by),
     backward (cites), or both directions.
     """
-    # TODO: Implement citation graph traversal
-    # 1. BFS/DFS traversal of legal_citations table
-    # 2. Build node and edge lists
-    # 3. Extract authority chain
-    # 4. Detect overruled cases
-    return CitationGraphResponse(
-        nodes=[],
-        edges=[],
-        authority_chain=[],
-        overruled_cases=[],
+    return await mcp_service.get_citations(
+        doc_id=doc_id,
+        direction=direction,
+        depth=depth,
+        tenant_id=tenant["tenant_id"],
     )
 
 
@@ -170,8 +138,11 @@ async def check_updates(
     Queries the legal_updates table for changes detected by the
     monitor system since the given date for the specified jurisdiction.
     """
-    # TODO: Implement update checking from legal_updates table
-    return LegalUpdatesResponse(updates=[])
+    return await mcp_service.check_updates(
+        jurisdiction=jurisdiction,
+        since_date=since_date,
+        tenant_id=tenant["tenant_id"],
+    )
 
 
 @router.get("/jurisdiction_summary", response_model=JurisdictionSummaryResponse)
@@ -184,11 +155,7 @@ async def jurisdiction_summary(
     Aggregates statistics from legal_documents and legal_updates tables
     for the specified jurisdiction.
     """
-    # TODO: Implement summary aggregation from database
-    return JurisdictionSummaryResponse(
+    return await mcp_service.jurisdiction_summary(
         jurisdiction_code=jurisdiction_code,
-        jurisdiction_name="",
-        coverage_percent=0.0,
-        doc_count=0,
-        recent_changes=[],
+        tenant_id=tenant["tenant_id"],
     )
