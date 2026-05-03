@@ -1,0 +1,508 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lexcore.com/skills/manifest/v1.0.0",
+  "title": "Skills Manifest",
+  "description": "Domain-agnostic skills registry for build system integration. Skills are baked into the fabric for current legal/patent domain and future domains (healthcare, patient files, etc.).",
+  "version": "1.0.0",
+  "domain": "legal-patent",
+  "skills_framework": "microsoft-skills-v2.0",
+  "created": "2026-05-02",
+  "last_updated": "2026-05-02",
+  "skills": {
+    "backend": {
+      "name": "Backend Engineering Skills",
+      "description": "Core backend development skills applicable across all domains",
+      "required_level": "intermediate",
+      "technologies": [
+        {
+          "name": "python",
+          "version": ">=3.12",
+          "level": "advanced",
+          "package": "python",
+          "verification_command": "python3 --version"
+        },
+        {
+          "name": "fastapi",
+          "version": ">=0.110",
+          "level": "advanced",
+          "package": "fastapi",
+          "verification_command": "pip show fastapi"
+        },
+        {
+          "name": "async-await",
+          "version": "any",
+          "level": "advanced",
+          "package": null,
+          "verification_command": null
+        },
+        {
+          "name": "postgresql",
+          "version": ">=15",
+          "level": "advanced",
+          "package": "asyncpg",
+          "verification_command": "pip show asyncpg"
+        },
+        {
+          "name": "pgvector",
+          "version": ">=0.2",
+          "level": "intermediate",
+          "package": "pgvector",
+          "verification_command": "pip show pgvector"
+        },
+        {
+          "name": "redis",
+          "version": ">=5.0",
+          "level": "intermediate",
+          "package": "redis",
+          "verification_command": "pip show redis"
+        },
+        {
+          "name": "celery",
+          "version": ">=5.3",
+          "level": "advanced",
+          "package": "celery",
+          "verification_command": "pip show celery"
+        },
+        {
+          "name": "sqlalchemy",
+          "version": ">=2.0",
+          "level": "intermediate",
+          "package": "sqlalchemy",
+          "verification_command": "pip show sqlalchemy"
+        }
+      ],
+      "domain_specific": {
+        "legal-patent": [
+          {
+            "name": "legal-document-parsing",
+            "description": "Parse legal documents (statutes, regulations, cases)",
+            "level": "intermediate",
+            "package": "docling"
+          },
+          {
+            "name": "citation-analysis",
+            "description": "Analyze legal citations and authority chains",
+            "level": "intermediate",
+            "package": null
+          }
+        ],
+        "healthcare": [
+          {
+            "name": "hipaa-compliance",
+            "description": "HIPAA compliance for patient data",
+            "level": "advanced",
+            "package": null
+          },
+          {
+            "name": "fhir-integration",
+            "description": "FHIR (Fast Healthcare Interoperability Resources) integration",
+            "level": "intermediate",
+            "package": "fhir.resources"
+          },
+          {
+            "name": "medical-terminology",
+            "description": "Medical terminology and coding systems (ICD-10, CPT)",
+            "level": "intermediate",
+            "package": null
+          }
+        ]
+      }
+    },
+    "frontend": {
+      "name": "Frontend Engineering Skills",
+      "description": "Core frontend development skills applicable across all domains",
+      "required_level": "intermediate",
+      "technologies": [
+        {
+          "name": "nextjs",
+          "version": ">=14",
+          "level": "advanced",
+          "package": "next",
+          "verification_command": "npm list next"
+        },
+        {
+          "name": "typescript",
+          "version": ">=5",
+          "level": "advanced",
+          "package": "typescript",
+          "verification_command": "npm list typescript"
+        },
+        {
+          "name": "react",
+          "version": ">=18",
+          "level": "advanced",
+          "package": "react",
+          "verification_command": "npm list react"
+        },
+        {
+          "name": "tailwind",
+          "version": ">=3",
+          "level": "intermediate",
+          "package": "tailwindcss",
+          "verification_command": "npm list tailwindcss"
+        }
+      ],
+      "domain_specific": {
+        "legal-patent": [
+          {
+            "name": "clerk-auth",
+            "description": "Clerk authentication for attorney portal",
+            "level": "intermediate",
+            "package": "@clerk/nextjs"
+          }
+        ],
+        "healthcare": [
+          {
+            "name": "patient-portal-ui",
+            "description": "Patient portal UI patterns",
+            "level": "intermediate",
+            "package": null
+          },
+          {
+            "name": "ehr-integration",
+            "description": "EHR (Electronic Health Record) integration UI",
+            "level": "advanced",
+            "package": null
+          }
+        ]
+      }
+    },
+    "devops": {
+      "name": "DevOps/Infrastructure Skills",
+      "description": "Core DevOps skills applicable across all domains",
+      "required_level": "advanced",
+      "technologies": [
+        {
+          "name": "docker",
+          "version": ">=24",
+          "level": "intermediate",
+          "package": null,
+          "verification_command": "docker --version"
+        },
+        {
+          "name": "kubernetes",
+          "version": ">=1.28",
+          "level": "advanced",
+          "package": null,
+          "verification_command": "kubectl version"
+        },
+        {
+          "name": "terraform",
+          "version": ">=1.5",
+          "level": "advanced",
+          "package": null,
+          "verification_command": "terraform version"
+        },
+        {
+          "name": "aws",
+          "version": "any",
+          "level": "advanced",
+          "package": null,
+          "verification_command": "aws --version"
+        }
+      ],
+      "domain_specific": {
+        "legal-patent": [],
+        "healthcare": [
+          {
+            "name": "hipaa-compliance-infrastructure",
+            "description": "Infrastructure for HIPAA compliance (encryption, audit logs)",
+            "level": "advanced",
+            "package": null
+          }
+        ]
+      }
+    },
+    "ml_ai": {
+      "name": "ML/AI Engineering Skills",
+      "description": "Core ML/AI skills applicable across all domains",
+      "required_level": "intermediate",
+      "technologies": [
+        {
+          "name": "openai-api",
+          "version": ">=1.0",
+          "level": "intermediate",
+          "package": "openai",
+          "verification_command": "pip show openai"
+        },
+        {
+          "name": "embeddings",
+          "version": "any",
+          "level": "intermediate",
+          "package": null
+        },
+        {
+          "name": "vector-databases",
+          "version": "any",
+          "level": "intermediate",
+          "package": "qdrant-client",
+          "verification_command": "pip show qdrant-client"
+        },
+        {
+          "name": "llm-integration",
+          "version": "any",
+          "level": "intermediate",
+          "package": null
+        }
+      ],
+      "domain_specific": {
+        "legal-patent": [
+          {
+            "name": "legal-llm-fine-tuning",
+            "description": "Fine-tune LLMs for legal domain",
+            "level": "advanced",
+            "package": null
+          },
+          {
+            "name": "patent-embedding-models",
+            "description": "Specialized embedding models for patent documents",
+            "level": "intermediate",
+            "package": null
+          }
+        ],
+        "healthcare": [
+          {
+            "name": "medical-llm-fine-tuning",
+            "description": "Fine-tune LLMs for healthcare domain",
+            "level": "advanced",
+            "package": null
+          },
+          {
+            "name": "clinical-embedding-models",
+            "description": "Specialized embedding models for clinical notes",
+            "level": "intermediate",
+            "package": null
+          },
+          {
+            "name": "medical-ner",
+            "description": "Named Entity Recognition for medical text",
+            "level": "intermediate",
+            "package": null
+          }
+        ]
+      }
+    },
+    "security": {
+      "name": "Security Engineering Skills",
+      "description": "Core security skills applicable across all domains",
+      "required_level": "intermediate",
+      "technologies": [
+        {
+          "name": "jwt",
+          "version": "any",
+          "level": "intermediate",
+          "package": "pyjwt",
+          "verification_command": "pip show pyjwt"
+        },
+        {
+          "name": "oauth2",
+          "version": "any",
+          "level": "intermediate",
+          "package": null
+        },
+        {
+          "name": "encryption",
+          "version": "any",
+          "level": "intermediate",
+          "package": null
+        },
+        {
+          "name": "rls",
+          "version": "any",
+          "level": "intermediate",
+          "package": null
+        }
+      ],
+      "domain_specific": {
+        "legal-patent": [
+          {
+            "name": "attorney-portal-auth",
+            "description": "Scoped JWT for attorney portal",
+            "level": "intermediate",
+            "package": null
+          }
+        ],
+        "healthcare": [
+          {
+            "name": "hipaa-security",
+            "description": "HIPAA security controls and audit trails",
+            "level": "advanced",
+            "package": null
+          },
+          {
+            "name": "patient-data-encryption",
+            "description": "Encryption for patient data at rest and in transit",
+            "level": "advanced",
+            "package": null
+          }
+        ]
+      }
+    },
+    "data": {
+      "name": "Data Engineering Skills",
+      "description": "Core data engineering skills applicable across all domains",
+      "required_level": "intermediate",
+      "technologies": [
+        {
+          "name": "postgresql",
+          "version": ">=15",
+          "level": "advanced",
+          "package": "asyncpg",
+          "verification_command": "pip show asyncpg"
+        },
+        {
+          "name": "etl",
+          "version": "any",
+          "level": "intermediate",
+          "package": null
+        },
+        {
+          "name": "data-modeling",
+          "version": "any",
+          "level": "intermediate",
+          "package": null
+        },
+        {
+          "name": "indexing",
+          "version": "any",
+          "level": "intermediate",
+          "package": null
+        }
+      ],
+      "domain_specific": {
+        "legal-patent": [
+          {
+            "name": "legal-data-modeling",
+            "description": "Data modeling for legal documents and citations",
+            "level": "intermediate",
+            "package": null
+          }
+        ],
+        "healthcare": [
+          {
+            "name": "fhir-data-modeling",
+            "description": "Data modeling for FHIR resources",
+            "level": "intermediate",
+            "package": null
+          },
+          {
+            "name": "clinical-data-modeling",
+            "description": "Data modeling for clinical data (observations, conditions)",
+            "level": "intermediate",
+            "package": null
+          }
+        ]
+      }
+    },
+    "blockchain": {
+      "name": "Blockchain Engineering Skills",
+      "description": "Core blockchain skills applicable across all domains",
+      "required_level": "intermediate",
+      "technologies": [
+        {
+          "name": "polygon",
+          "version": "any",
+          "level": "intermediate",
+          "package": "web3",
+          "verification_command": "pip show web3"
+        },
+        {
+          "name": "smart-contracts",
+          "version": "any",
+          "level": "intermediate",
+          "package": null
+        },
+        {
+          "name": "cryptography",
+          "version": "any",
+          "level": "intermediate",
+          "package": null
+        }
+      ],
+      "domain_specific": {
+        "legal-patent": [
+          {
+            "name": "ip-anchoring",
+            "description": "IP proof anchoring to blockchain",
+            "level": "intermediate",
+            "package": null
+          }
+        ],
+        "healthcare": [
+          {
+            "name": "patient-data-integrity",
+            "description": "Patient data integrity verification on blockchain",
+            "level": "intermediate",
+            "package": null
+          },
+          {
+            "name": "clinical-trial-anchoring",
+            "description": "Clinical trial data anchoring for audit trails",
+            "level": "intermediate",
+            "package": null
+          }
+        ]
+      }
+    },
+    "domain": {
+      "name": "Domain Expertise Skills",
+      "description": "Domain-specific expertise (legal/patent, healthcare, etc.)",
+      "required_level": "intermediate",
+      "technologies": [],
+      "domain_specific": {
+        "legal-patent": [
+          {
+            "name": "patent-law",
+            "description": "Patent law expertise (novelty, non-obviousness, enablement)",
+            "level": "intermediate",
+            "package": null
+          },
+          {
+            "name": "legal-document-parsing",
+            "description": "Parse legal documents (statutes, regulations, cases)",
+            "level": "intermediate",
+            "package": null
+          },
+          {
+            "name": "jurisdiction-mapping",
+            "description": "Map legal concepts across jurisdictions",
+            "level": "intermediate",
+            "package": null
+          }
+        ],
+        "healthcare": [
+          {
+            "name": "medical-terminology",
+            "description": "Medical terminology and coding systems",
+            "level": "intermediate",
+            "package": null
+          },
+          {
+            "name": "clinical-workflows",
+            "description": "Clinical workflow understanding",
+            "level": "intermediate",
+            "package": null
+          },
+          {
+            "name": "healthcare-regulations",
+            "description": "Healthcare regulations (HIPAA, FDA, etc.)",
+            "level": "advanced",
+            "package": null
+          }
+        ]
+      }
+    }
+  },
+  "extension_pattern": {
+    "description": "To add a new domain, add domain-specific skills to each skill category and update the 'domain' field in this manifest",
+    "example": {
+      "new_domain": "finance",
+      "steps": [
+        "Update 'domain' field to 'finance'",
+        "Add domain-specific skills to each category (backend, frontend, devops, etc.)",
+        "Update domain_specific sections with finance-relevant skills",
+        "Run skills verification script to validate new skills"
+      ]
+    }
+  }
+}

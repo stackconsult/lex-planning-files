@@ -1,7 +1,8 @@
 # LexCore + LexRadar — Unified Build System v2
 # Common commands for all HORDE teams
+# Skills-integrated build system for domain-agnostic reuse
 
-.PHONY: help dev test lint format migrate db-up db-down clean
+.PHONY: help dev test lint format migrate db-up db-down clean skills-check skills-install skills-verify
 
 help:
 	@echo "Available commands:"
@@ -17,6 +18,9 @@ help:
 	@echo "  make format       Run ruff formatter"
 	@echo "  make typecheck    Run mypy type checker"
 	@echo "  make clean        Remove build artifacts and containers"
+	@echo "  make skills-check Check required skills against SKILLS_MANIFEST.json"
+	@echo "  make skills-verify Verify skill levels and dependencies"
+	@echo "  make skills-install Install missing skill dependencies"
 
 # Development
 
@@ -75,3 +79,25 @@ clean:
 	find backend -type f -name '*.pyo' -delete 2>/dev/null || true
 	find backend -type d -name '.pytest_cache' -exec rm -rf {} + 2>/dev/null || true
 	find backend -type d -name '.mypy_cache' -exec rm -rf {} + 2>/dev/null || true
+
+# Skills Management (Domain-Agnostic Build Integration)
+
+skills-check:
+	@echo "Checking required skills against SKILLS_MANIFEST.json..."
+	@python3 scripts/skills_manager.py check
+
+skills-verify:
+	@echo "Verifying skill levels and dependencies..."
+	@python3 scripts/skills_manager.py verify
+
+skills-install:
+	@echo "Installing missing skill dependencies..."
+	@python3 scripts/skills_manager.py install
+
+skills-report:
+	@echo "Generating skills report..."
+	@python3 scripts/skills_manager.py report
+
+skills-domain:
+	@echo "Current domain: $$(python3 scripts/skills_manager.py get-domain)"
+	@echo "To change domain, update .github/skills/SKILLS_MANIFEST.json"
