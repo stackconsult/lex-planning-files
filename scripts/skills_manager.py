@@ -116,7 +116,23 @@ class SkillsManager:
             return True
 
     def _is_package_installed(self, package: str) -> bool:
-        """Check if a Python package is installed."""
+        """Check if a Python package is installed (using backend venv)."""
+        venv_python = self.project_root / "backend" / "venv" / "bin" / "python"
+        
+        # Try backend venv first
+        if venv_python.exists():
+            try:
+                result = subprocess.run(
+                    [str(venv_python), '-m', 'pip', 'show', package],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                return result.returncode == 0
+            except Exception:
+                pass
+        
+        # Fallback to system pip (with warning)
         try:
             result = subprocess.run(
                 ['pip', 'show', package],
@@ -142,18 +158,33 @@ class SkillsManager:
         domain = self.get_domain()
         installed_count = 0
         failed_count = 0
+        skipped_count = 0
+        
+        venv_pip = self.project_root / "backend" / "venv" / "bin" / "pip"
         
         for category, category_data in self.manifest.get('skills', {}).items():
             for tech in category_data.get('technologies', []):
                 package = tech.get('package')
                 if package and not self._is_package_installed(package):
+                    # Skip npm packages (frontend)
+                    if package.startswith('@') or package in ['next', 'react', 'typescript', 'tailwindcss']:
+                        print(f"Skipping {package} (npm package - install via frontend setup)")
+                        skipped_count += 1
+                        continue
+                    
                     print(f"Installing {package}...")
                     try:
-                        subprocess.run(
-                            ['pip', 'install', package],
-                            check=True,
-                            timeout=300
-                        )
+                        # Use backend venv if available
+                        if venv_pip.exists():
+                            subprocess.run(
+                                [str(venv_pip), 'install', package],
+                                check=True,
+                                timeout=300
+                            )
+                        else:
+                            print(f"  ⚠ Backend venv not found, skipping {package}")
+                            skipped_count += 1
+                            continue
                         print(f"  ✓ {package} installed successfully")
                         installed_count += 1
                     except Exception as e:
@@ -165,13 +196,24 @@ class SkillsManager:
             for tech in domain_specific:
                 package = tech.get('package')
                 if package and not self._is_package_installed(package):
+                    # Skip npm packages
+                    if package.startswith('@') or package in ['next', 'react', 'typescript', 'tailwindcss']:
+                        print(f"Skipping {package} (npm package - install via frontend setup)")
+                        skipped_count += 1
+                        continue
+                    
                     print(f"Installing {package} (domain-specific)...")
                     try:
-                        subprocess.run(
-                            ['pip', 'install', package],
-                            check=True,
-                            timeout=300
-                        )
+                        if venv_pip.exists():
+                            subprocess.run(
+                                [str(venv_pip), 'install', package],
+                                check=True,
+                                timeout=300
+                            )
+                        else:
+                            print(f"  ⚠ Backend venv not found, skipping {package}")
+                            skipped_count += 1
+                            continue
                         print(f"  ✓ {package} installed successfully")
                         installed_count += 1
                     except Exception as e:
@@ -179,7 +221,7 @@ class SkillsManager:
                         failed_count += 1
         
         print()
-        print(f"Installation complete: {installed_count} installed, {failed_count} failed")
+        print(f"Installation complete: {installed_count} installed, {failed_count} failed, {skipped_count} skipped")
         return failed_count == 0
 
     def report(self) -> None:
