@@ -115,7 +115,7 @@ This document provides the complete roadmap checklist integrating all markdown f
 - Grounding ≥ 0.85
 - All 10 LHP sections draftable
 
-### Phase 3: Ledger + Auto (READY)
+### Phase 3: Ledger + Auto (IN_PROGRESS)
 **Dependencies:**
 - Phase 1 gate pass ✅
 - proof_ledger table
@@ -125,6 +125,12 @@ This document provides the complete roadmap checklist integrating all markdown f
 **Outputs:**
 - Immutable proof layer live
 - Full pipeline < 3,000ms
+
+**Verification Status:**
+- Code & Function Verification: NOT READY (PHASE_3_CODE_FUNCTION_VERIFICATION.md)
+- Improvement Plan: READY (PHASE_3_DEPLOYMENT_READINESS_IMPROVEMENT_PLAN.md)
+- Team G (Ledger & BYOK): 5 chunks pending
+- Team H (Infrastructure & Cloud): 7 chunks pending
 
 ### Phase 4: Portal + Handoff (BLOCKED)
 **Dependencies:**
