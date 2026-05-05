@@ -364,3 +364,4 @@ This document assembles MD skill teams and builds out systematic steps with tagg
 10. Team K runs integration tests (Chunk 65)
 11. Team K verifies coverage (Chunk 66)
 12. Team K runs performance testing (Chunk 67)
+13. Team L runs HORDE-AUDIT gate (Chunk 70)
