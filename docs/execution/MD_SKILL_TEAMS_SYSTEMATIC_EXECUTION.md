@@ -358,3 +358,4 @@ This document assembles MD skill teams and builds out systematic steps with tagg
 4. Team A documents schema evolution (Chunk 4)
 5. Team B deploys API routes (Chunk 5)
 6. Team B implements MCP tools (Chunk 6)
+7. Team B configures authentication (Chunk 7)
