@@ -430,3 +430,24 @@ This document assembles MD skill teams and builds out systematic steps with tagg
 13. Team L runs HORDE-AUDIT gate (Chunk 74)
 
 **Gate:** Attorney flow < 5 min, tenant isolation audit clean, portal functional, E2E tests pass, UX validated
+
+### Step 7: Phase 5 Hardening (Days 14-16)
+**Lead Team:** Team I (Security & Hardening)
+**Support Teams:** Team H (Infrastructure & Cloud), Team K (Evaluation & Testing), Team L (Audit & Compliance)
+
+**Execution Order:**
+1. Team I runs load testing (Chunk 54)
+2. Team I optimizes performance (Chunk 55)
+3. Team I hardens security (Chunk 56)
+4. Team I runs chaos testing (Chunk 57)
+5. Team I validates zero HIGH CVEs (Chunk 58)
+6. Team H scales infrastructure (Chunk 59)
+7. Team H configures auto-scaling (Chunk 60)
+8. Team H configures disaster recovery (Chunk 61)
+9. Team K runs final E2E tests (Chunk 76)
+10. Team K runs performance validation (Chunk 77)
+11. Team L runs final security audit (Chunk 78)
+12. Team L runs final HORDE-AUDIT gate (Chunk 79)
+13. Team L validates production readiness (Chunk 80)
+
+**Gate:** Load P99 < 10s, zero HIGH CVEs, chaos testing passes, final audit clean, production ready
