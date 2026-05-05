@@ -1,0 +1,14 @@
+# Kubernetes ConfigMap for service configuration
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lexcore-config
+  namespace: lexcore-prod
+data:
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "info"
+  REDIS_HOST: "redis.lexcore-prod.svc.cluster.local"
+  REDIS_PORT: "6379"
+  QDRANT_HOST: "qdrant.lexcore-prod.svc.cluster.local"
+  QDRANT_PORT: "6333"
