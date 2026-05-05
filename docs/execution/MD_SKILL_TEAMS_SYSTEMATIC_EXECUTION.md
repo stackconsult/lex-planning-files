@@ -344,3 +344,15 @@ This document assembles MD skill teams and builds out systematic steps with tagg
 1. Team M reviews Phase 0 outputs (Chunk 75)
 2. Team M validates contract bundle hash (Chunk 76)
 3. Team M approves Phase 0 gate (Chunk 75)
+
+**Gate:** Phase 0 outputs validated, contract bundle hash verified, gate approved
+
+### Step 3: Phase 1 LexCore DB Execution (Days 1-3)
+**Lead Team:** Team A (Foundation & Schema)
+**Support Teams:** Team B (API & MCP Tools), Team K (Evaluation & Testing)
+
+**Execution Order:**
+1. Team A runs migrations (Chunk 1)
+2. Team A validates RLS policies (Chunk 2)
+3. Team A optimizes pgvector indexes (Chunk 3)
+4. Team A documents schema evolution (Chunk 4)
