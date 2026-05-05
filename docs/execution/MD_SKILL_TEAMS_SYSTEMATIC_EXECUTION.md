@@ -357,3 +357,4 @@ This document assembles MD skill teams and builds out systematic steps with tagg
 3. Team A optimizes pgvector indexes (Chunk 3)
 4. Team A documents schema evolution (Chunk 4)
 5. Team B deploys API routes (Chunk 5)
+6. Team B implements MCP tools (Chunk 6)
