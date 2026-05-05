@@ -10,5 +10,6 @@ from .cite_agent import CiteAgent, Citation
 from .scanner_agent import ScannerAgent, ScanResult
 from .detector_agent import DetectorAgent, Detection
 from .prior_art_agent import PriorArtAgent, PriorArtResult
+from .scorer_agent import ScorerAgent, ScoreResult
 
-__all__ = ["RouterAgent", "AgentType", "SearchAgent", "SearchResult", "AnalysisAgent", "AnalysisResult", "DraftAgent", "DraftResult", "IngestAgent", "IngestResult", "MonitorAgent", "Metric", "CiteAgent", "Citation", "ScannerAgent", "ScanResult", "DetectorAgent", "Detection", "PriorArtAgent", "PriorArtResult"]
+__all__ = ["RouterAgent", "AgentType", "SearchAgent", "SearchResult", "AnalysisAgent", "AnalysisResult", "DraftAgent", "DraftResult", "IngestAgent", "IngestResult", "MonitorAgent", "Metric", "CiteAgent", "Citation", "ScannerAgent", "ScanResult", "DetectorAgent", "Detection", "PriorArtAgent", "PriorArtResult", "ScorerAgent", "ScoreResult"]
