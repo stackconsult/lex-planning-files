@@ -387,3 +387,25 @@ This document assembles MD skill teams and builds out systematic steps with tagg
 12. Team H runs infrastructure smoke test (Chunk 53)
 
 **Gate:** Immutable proof layer live, BYOK test passes, all services deployed, smoke test passes, RLS audit clean
+
+### Step 5: Phase 2 IP Pipeline (Days 4-7)
+**Lead Team:** Team C (Agents & Ingestion)
+**Support Teams:** Team D (Scoring & Disclosure), Team E (Legal & Compliance), Team K (Evaluation & Testing)
+
+**Execution Order:**
+1. Team C implements 24 agents (Chunk 9)
+2. Team C configures prior art fetchers (Chunk 10)
+3. Team C validates agent grounding (Chunk 11)
+4. Team C implements LHP section generation (Chunk 12)
+5. Team D implements scoring model (Chunk 13)
+6. Team D calibrates scoring thresholds (Chunk 14)
+7. Team D implements disclosure generation (Chunk 15)
+8. Team D validates disclosure completeness (Chunk 16)
+9. Team E validates legal compliance (Chunk 17)
+10. Team E validates jurisdiction mapping (Chunk 18)
+11. Team E validates attorney handoff (Chunk 19)
+12. Team K runs agent unit tests (Chunk 68)
+13. Team K runs integration tests (Chunk 69)
+14. Team L runs HORDE-AUDIT gate (Chunk 71)
+
+**Gate:** All 24 agents built, grounding ≥ 0.85, all 10 LHP sections draftable, scoring calibrated, disclosure complete, legal compliance validated
