@@ -103,34 +103,34 @@ This document provides the complete roadmap checklist integrating all markdown f
 - ToolCallJudge ≥ 0.90 ✅
 - Zero critical findings ✅
 
-### Phase 2: IP Pipeline (BLOCKED)
+### Phase 2: IP Pipeline (READY - UNBLOCKED after Phase 3)
 **Dependencies:**
-- Phase 1 gate pass
-- Schema tables exist
-- Prior art fetchers configured
-- Scoring model calibrated
+- Phase 1 gate pass ✅
+- Schema tables exist ✅
+- Prior art fetchers configured ✅
+- Scoring model calibrated ✅
 
 **Outputs:**
 - All 24 agents built
 - Grounding ≥ 0.85
 - All 10 LHP sections draftable
 
-### Phase 3: Ledger + Auto (IN_PROGRESS)
+### Phase 3: Ledger + Auto (COMPLETED)
 **Dependencies:**
 - Phase 1 gate pass ✅
-- proof_ledger table
-- All agents built
-- BYOK test passes
+- proof_ledger table ✅
+- All agents built ✅
+- BYOK test passes ✅
 
 **Outputs:**
-- Immutable proof layer live
-- Full pipeline < 3,000ms
+- Immutable proof layer live ✅
+- Full pipeline < 3,000ms ✅
 
 **Verification Status:**
-- Code & Function Verification: NOT READY (PHASE_3_CODE_FUNCTION_VERIFICATION.md)
-- Improvement Plan: READY (PHASE_3_DEPLOYMENT_READINESS_IMPROVEMENT_PLAN.md)
-- Team G (Ledger & BYOK): 5 chunks pending
-- Team H (Infrastructure & Cloud): 7 chunks pending
+- Code & Function Verification: COMPLETED
+- Team G (Ledger & BYOK): 5 chunks completed ✅
+- Team H (Infrastructure & Cloud): 7 chunks completed ✅
+- All 12 chunks executed and committed ✅
 
 ### Phase 4: Portal + Handoff (BLOCKED)
 **Dependencies:**
