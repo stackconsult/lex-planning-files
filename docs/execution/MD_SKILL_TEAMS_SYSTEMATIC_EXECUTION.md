@@ -333,3 +333,14 @@ This document assembles MD skill teams and builds out systematic steps with tagg
 3. Team N installs skills (Chunk 82)
 4. Team N tests workflows (Chunk 83)
 5. Team N validates domain-agnostic design (Chunk 84)
+
+**Gate:** Skills installed, workflows tested, domain-agnostic validated
+
+### Step 2: Phase 0 Gate Review (Day 0)
+**Lead Team:** Team M (Master Coordination)
+**Support Teams:** All teams
+
+**Execution Order:**
+1. Team M reviews Phase 0 outputs (Chunk 75)
+2. Team M validates contract bundle hash (Chunk 76)
+3. Team M approves Phase 0 gate (Chunk 75)
