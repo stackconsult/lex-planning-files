@@ -1,0 +1,46 @@
+# Infrastructure Smoke Test - Health Check Deployment
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: health-check
+  namespace: lexcore-prod
+spec:
+  selector:
+    app: health-check
+  ports:
+  - port: 8080
+    targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: health-check
+  namespace: lexcore-prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: health-check
+  template:
+    metadata:
+      labels:
+        app: health-check
+    spec:
+      containers:
+      - name: health-check
+        image: nginx:alpine
+        ports:
+        - containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
