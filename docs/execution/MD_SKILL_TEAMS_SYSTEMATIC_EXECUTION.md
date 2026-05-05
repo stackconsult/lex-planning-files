@@ -409,3 +409,24 @@ This document assembles MD skill teams and builds out systematic steps with tagg
 14. Team L runs HORDE-AUDIT gate (Chunk 71)
 
 **Gate:** All 24 agents built, grounding ≥ 0.85, all 10 LHP sections draftable, scoring calibrated, disclosure complete, legal compliance validated
+
+### Step 6: Phase 4 Portal + Handoff (Days 11-13)
+**Lead Team:** Team F (Portal & UX)
+**Support Teams:** Team B (API & MCP Tools), Team L (Audit & Compliance), Team K (Evaluation & Testing)
+
+**Execution Order:**
+1. Team F implements attorney portal UI (Chunk 20)
+2. Team F implements tenant isolation (Chunk 21)
+3. Team F implements document upload (Chunk 22)
+4. Team F implements attorney handoff flow (Chunk 23)
+5. Team F implements dashboard (Chunk 24)
+6. Team B wires API to portal (Chunk 25)
+7. Team B implements portal authentication (Chunk 26)
+8. Team B implements portal rate limiting (Chunk 27)
+9. Team L runs tenant isolation audit (Chunk 72)
+10. Team L runs security audit (Chunk 73)
+11. Team K runs E2E tests (Chunk 74)
+12. Team K runs UX testing (Chunk 75)
+13. Team L runs HORDE-AUDIT gate (Chunk 74)
+
+**Gate:** Attorney flow < 5 min, tenant isolation audit clean, portal functional, E2E tests pass, UX validated
