@@ -367,3 +367,23 @@ This document assembles MD skill teams and builds out systematic steps with tagg
 13. Team L runs HORDE-AUDIT gate (Chunk 70)
 
 **Gate:** Migrations run clean, RLS policies enforced, API routes functional, MCP tools schema-valid, authentication working, rate limiting enforced, test coverage ≥ 80%, ToolCallJudge ≥ 0.90, zero critical findings
+
+### Step 4: Phase 3 Ledger + Auto (Days 8-10)
+**Lead Team:** Team G (Ledger & BYOK)
+**Support Teams:** Team H (Infrastructure & Cloud), Team L (Audit & Compliance)
+
+**Execution Order:**
+1. Team G implements immutable proof layer (Chunk 42)
+2. Team G implements BYOK (Chunk 43)
+3. Team G implements chain anchoring (Chunk 44)
+4. Team G implements proof verification (Chunk 45)
+5. Team G validates cryptographic security (Chunk 46)
+6. Team H provisions Neon database (Chunk 47)
+7. Team H provisions Qdrant vector store (Chunk 48)
+8. Team H provisions Redis cache (Chunk 49)
+9. Team H provisions S3 storage (Chunk 50)
+10. Team H deploys Kubernetes manifests (Chunk 51)
+11. Team H configures services (Chunk 52)
+12. Team H runs infrastructure smoke test (Chunk 53)
+
+**Gate:** Immutable proof layer live, BYOK test passes, all services deployed, smoke test passes, RLS audit clean
