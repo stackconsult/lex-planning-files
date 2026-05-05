@@ -86,7 +86,7 @@ This document provides the complete roadmap checklist integrating all markdown f
 - Interface contracts
 - Contract bundle hash
 
-### Phase 1: LexCore DB (IN PROGRESS)
+### Phase 1: LexCore DB (COMPLETED)
 **Dependencies:**
 - PROJECT_MANIFEST.md (schema v0.1.0-foundation)
 - ERD_COMPLETE.dbml
@@ -94,9 +94,14 @@ This document provides the complete roadmap checklist integrating all markdown f
 - Skills installed (legal-patent domain)
 
 **Outputs:**
-- Migrations run clean
-- API routes functional
-- MCP tools schema-valid
+- Migrations run clean ✅
+- API routes functional ✅
+- MCP tools schema-valid ✅
+- Authentication working ✅
+- Rate limiting enforced ✅
+- Test coverage ≥ 80% ✅
+- ToolCallJudge ≥ 0.90 ✅
+- Zero critical findings ✅
 
 ### Phase 2: IP Pipeline (BLOCKED)
 **Dependencies:**
@@ -110,9 +115,9 @@ This document provides the complete roadmap checklist integrating all markdown f
 - Grounding ≥ 0.85
 - All 10 LHP sections draftable
 
-### Phase 3: Ledger + Auto (BLOCKED)
+### Phase 3: Ledger + Auto (READY)
 **Dependencies:**
-- Phase 2 gate pass
+- Phase 1 gate pass ✅
 - proof_ledger table
 - All agents built
 - BYOK test passes
