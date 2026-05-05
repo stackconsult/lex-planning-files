@@ -7,5 +7,6 @@ from .draft_agent import DraftAgent, DraftResult
 from .ingest_agent import IngestAgent, IngestResult
 from .monitor_agent import MonitorAgent, Metric
 from .cite_agent import CiteAgent, Citation
+from .scanner_agent import ScannerAgent, ScanResult
 
-__all__ = ["RouterAgent", "AgentType", "SearchAgent", "SearchResult", "AnalysisAgent", "AnalysisResult", "DraftAgent", "DraftResult", "IngestAgent", "IngestResult", "MonitorAgent", "Metric", "CiteAgent", "Citation"]
+__all__ = ["RouterAgent", "AgentType", "SearchAgent", "SearchResult", "AnalysisAgent", "AnalysisResult", "DraftAgent", "DraftResult", "IngestAgent", "IngestResult", "MonitorAgent", "Metric", "CiteAgent", "Citation", "ScannerAgent", "ScanResult"]
